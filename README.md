@@ -6,7 +6,7 @@
 - This project is a work in progress and is not yet ready for production.
 - Some features are not yet implemented.
 - If you have any problems or suggestions, please open an issue.
-- This Browser is only for educational purposes, so if you no access some service from big like Google, etc. because of the security policy of them.
+- This Browser is only for educational purposes, so if you no access some service from bigTech like Google, etc. because of the security policy of them.
 
 ## ✨ Key Features
 
@@ -50,6 +50,10 @@
 3.  **Run the application:**
     - **Windows:** `flutter run -d windows`
     - **Android:** `flutter run -d android`
+
+4. **Build the application:**
+    - **Windows:** `flutter build windows`
+    - **Android:** `flutter build apk`
 
 ## 🛠 Tech Stack
 - **Framework**: [Flutter](https://flutter.dev/)

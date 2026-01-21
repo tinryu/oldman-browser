@@ -133,10 +133,10 @@ class _MainScreenState extends State<MainScreen> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                theme.colorScheme.onPrimary.withValues(alpha: 0.1),
+                theme.colorScheme.surface.withValues(alpha: 0.1),
                 theme.colorScheme.surface.withValues(alpha: 0.8),
                 theme.colorScheme.surface.withValues(alpha: 0.8),
-                theme.colorScheme.onPrimary.withValues(alpha: 0.1),
+                theme.colorScheme.surface.withValues(alpha: 0.1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
