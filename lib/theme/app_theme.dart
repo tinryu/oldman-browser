@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // Brand Colors
-  static const Color primaryBlue = Colors.blue;
-  static const Color accentBlue = Colors.blueAccent;
+  static const Color primary = Colors.amber;
+  static const Color accent = Colors.amberAccent;
   static const Color backgroundDark = Color.fromARGB(255, 7, 7, 7);
   static const Color surfaceDark = Color.fromARGB(255, 20, 20, 20);
   static const Color backgroundLight = Color.fromARGB(255, 241, 241, 241);
@@ -14,8 +14,8 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
-        onPrimary: primaryBlue,
-        seedColor: primaryBlue,
+        onPrimary: primary,
+        seedColor: accent,
         brightness: Brightness.light,
         surface: surfaceLight,
         onSurface: const Color(0xFF0F172A),
@@ -56,8 +56,8 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
-        onPrimary: primaryBlue,
-        seedColor: primaryBlue,
+        onPrimary: primary,
+        seedColor: primary,
         brightness: Brightness.dark,
         surface: surfaceDark,
         onSurface: Colors.white,

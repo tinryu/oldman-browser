@@ -1224,7 +1224,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     height: 50,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue),
+                      border: Border.all(color: theme.colorScheme.onPrimary),
                     ),
                     child: IconButton(
                       onPressed: () {
@@ -1336,12 +1336,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             color: isActive
                                 ? (tab.isIncognito
                                       ? Colors.purpleAccent
-                                      : theme.colorScheme.primary)
+                                      : theme.colorScheme.onSurface)
                                 : (tab.isIncognito
-                                      ? Colors.purple.withValues(alpha: 0.5)
-                                      : theme.dividerColor.withValues(
-                                          alpha: 0.1,
-                                        )),
+                                      ? theme.colorScheme.onSurface
+                                      : theme.colorScheme.onSurface),
                             width: isActive ? 3 : 1,
                           ),
                           boxShadow: isActive
@@ -1350,7 +1348,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     color:
                                         (tab.isIncognito
                                                 ? Colors.purpleAccent
-                                                : Colors.blue)
+                                                : theme.colorScheme.surface)
                                             .withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     spreadRadius: 2,
@@ -1373,7 +1371,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     decoration: BoxDecoration(
                                       color: tab.isIncognito
                                           ? Colors.purple.shade700
-                                          : Colors.blue.shade700,
+                                          : theme.colorScheme.onPrimary,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Icon(
@@ -1389,7 +1387,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     child: Text(
                                       tab.title.isEmpty ? 'New tab' : tab.title,
                                       style: TextStyle(
-                                        color: theme.colorScheme.onSurface,
+                                        color: tab.isIncognito
+                                            ? Colors.purple.shade700
+                                            : theme.colorScheme.onPrimary,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -1495,7 +1495,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }),
       MenuBottomItem(Icons.download, "Downloads", Colors.white, () {
         Navigator.pop(context); // Close modal
-        widget.onTabRequested(2); // Switch to "Offline" (Downloaded) tab
+        widget.onTabRequested(3); // Switch to "Offline" (Downloaded) tab
       }),
       MenuBottomItem(Icons.settings, "Settings", Colors.white, () {
         Navigator.pop(context);

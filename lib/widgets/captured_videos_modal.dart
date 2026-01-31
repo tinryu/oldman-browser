@@ -93,7 +93,7 @@ class _CapturedVideosModalState extends State<CapturedVideosModal> {
                   onPressed: () {
                     if (widget.onlineVideos.isNotEmpty) {
                       Navigator.pop(context); // Close the modal
-                      widget.onTabRequested(1); // Switch to Onlines tab
+                      widget.onTabRequested(2); // Switch to Onlines tab
                     }
                   },
                 ),

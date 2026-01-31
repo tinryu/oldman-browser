@@ -26,6 +26,14 @@ dependencies:
   webview_windows: ^0.4.0
   provider: ^6.1.5+1
   shared_preferences: ^2.5.4
+  # Networking + images
+  http: ^1.2.2
+  cached_network_image: ^3.4.1
+  # Google Fonts
+  google_fonts: ^6.2.1
+  # ffmpeg_kit_flutter_new (fork that fixes Android build issues)
+  ffmpeg_kit_flutter_new: ^4.1.0
+
 
 dev_dependencies:
   flutter_test:
@@ -33,6 +41,7 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.13.1
+  
 
 flutter_launcher_icons:
   android: "launcher_icon"

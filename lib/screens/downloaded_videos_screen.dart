@@ -12,9 +12,11 @@ class DownloadedVideosScreen extends StatefulWidget {
 }
 
 class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
-  List<VideoItem> downloadedVideos = [];
+  List<dynamic> _displayItems = []; // Can be VideoItem or Directory
   final Set<VideoItem> _selectedVideos = {};
   bool _isLoading = true;
+  Directory? _currentDir;
+  Directory? _rootDir;
 
   @override
   void initState() {
@@ -36,65 +38,141 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
   }
 
   Future<void> _loadDownloadedVideos() async {
-    setState(() => _isLoading = true);
-    final downloadsDir = await _getDownloadsDir();
-    if (!await downloadsDir.exists()) {
-      setState(() {
-        downloadedVideos = [];
-        _isLoading = false;
-        _selectedVideos.clear();
-      });
-      return;
+    _rootDir = await _getDownloadsDir();
+    if (!await _rootDir!.exists()) {
+      await _rootDir!.create(recursive: true);
     }
+    _currentDir = _rootDir;
+    await _loadCurrentDir();
+  }
 
-    final List<VideoItem> loaded = [];
+  Future<void> _loadCurrentDir() async {
+    if (_currentDir == null) return;
+
+    setState(() {
+      _selectedVideos.clear();
+      _isLoading = true;
+    });
+    final List<dynamic> items = [];
+
     try {
-      final List<FileSystemEntity> folders = downloadsDir.listSync();
-      for (var folder in folders) {
-        if (folder is Directory) {
-          final masterFile = File('${folder.path}/master.m3u8');
-          final mp4File = File('${folder.path}/output.mp4');
+      final List<FileSystemEntity> entities = _currentDir!.listSync();
 
+      for (var entity in entities) {
+        if (entity is Directory) {
+          // Check if this directory is a video itself
+          final masterFile = File('${entity.path}/master.m3u8');
+          final mp4File = File('${entity.path}/output.mp4');
           bool isMp4 = await mp4File.exists();
           bool isHls = await masterFile.exists();
 
           if (isMp4 || isHls) {
+            // It's a video
             String? thumbPath;
-            final thumbFile = File('${folder.path}/thumbnail.jpg');
+            final thumbFile = File('${entity.path}/thumbnail.jpg');
             if (await thumbFile.exists()) {
               thumbPath = thumbFile.path;
             }
 
-            loaded.add(
+            items.add(
               VideoItem(
-                title: folder.path.split(Platform.pathSeparator).last,
+                title: entity.path.split(Platform.pathSeparator).last,
                 url: isMp4 ? mp4File.path : 'file://${masterFile.path}',
                 thumbnailUrl: thumbPath,
               ),
             );
+          } else {
+            // It's a group folder (or empty folder)
+            // Verify not empty or contains valid stuff if we want to be strict,
+            // but for now just show as folder
+            items.add(entity);
           }
         }
       }
     } catch (e) {
-      debugPrint('Error loading downloads: $e');
+      debugPrint('Error loading dir: $e');
     }
 
     setState(() {
-      downloadedVideos = loaded;
-      // Remove any selected items that are no longer present
-      _selectedVideos.removeWhere(
-        (selected) => !loaded.any((item) => item.title == selected.title),
-      );
+      _displayItems = items;
       _isLoading = false;
     });
   }
 
+  void _navigateToDir(Directory dir) {
+    setState(() {
+      _currentDir = dir;
+    });
+    _loadCurrentDir();
+  }
+
+  Future<bool> _navigateBack() async {
+    if (_currentDir?.path == _rootDir?.path) {
+      return true; // Use default back behavior (exit app/screen)
+    } else {
+      setState(() {
+        _currentDir = _currentDir?.parent;
+      });
+      _loadCurrentDir();
+      return false; // Prevent default back
+    }
+  }
+
+  String _getCurrentBreadcrumb() {
+    if (_currentDir == null || _rootDir == null) return 'Roots /';
+    if (_currentDir!.path == _rootDir!.path) return 'Roots /';
+
+    final relativePath = _currentDir!.path.replaceFirst(_rootDir!.path, '');
+    final parts = relativePath
+        .split(Platform.pathSeparator)
+        .where((p) => p.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) return 'Roots /';
+    return 'Roots / ${parts.join(' / ')}';
+  }
+
+  Map<String, int> _getItemCounts() {
+    int folderCount = 0;
+    int videoCount = 0;
+
+    for (var item in _displayItems) {
+      if (item is Directory) {
+        folderCount++;
+      } else if (item is VideoItem) {
+        videoCount++;
+      }
+    }
+
+    return {'folders': folderCount, 'videos': videoCount};
+  }
+
   Future<void> _deleteVideo(VideoItem video) async {
     try {
-      final downloadsDir = await _getDownloadsDir();
-      final videoDir = Directory('${downloadsDir.path}/${video.title}');
+      String videoDirString;
+      if (video.url.startsWith('file://')) {
+        // HLS
+        final masterFile = File(video.url.replaceFirst('file://', ''));
+        videoDirString = masterFile.parent.path;
+      } else {
+        // MP4
+        final mp4File = File(video.url);
+        videoDirString = mp4File.parent.path;
+      }
+
+      final videoDir = Directory(videoDirString);
       if (await videoDir.exists()) {
         await videoDir.delete(recursive: true);
+      }
+
+      // Try to clean up empty parent directory (Group directory)
+      // Only delete if it's not the root downloads directory
+      final downloadsDir = await _getDownloadsDir();
+      final parentDir = videoDir.parent;
+      if (parentDir.path != downloadsDir.path) {
+        if (await parentDir.exists() && parentDir.listSync().isEmpty) {
+          await parentDir.delete();
+        }
       }
     } catch (e) {
       debugPrint('Error deleting ${video.title}: $e');
@@ -144,19 +222,8 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
         );
       }
     } finally {
-      await _loadDownloadedVideos();
+      await _loadCurrentDir();
     }
-  }
-
-  void _toggleSelectAll() {
-    setState(() {
-      if (_selectedVideos.length == downloadedVideos.length &&
-          downloadedVideos.isNotEmpty) {
-        _selectedVideos.clear();
-      } else {
-        _selectedVideos.addAll(downloadedVideos);
-      }
-    });
   }
 
   @override
@@ -175,84 +242,68 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
         backgroundColor: theme.colorScheme.onPrimary.withValues(alpha: 0.1),
         foregroundColor: theme.colorScheme.onSurface,
         leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0),
-          child: IconButton(
-            icon: Icon(
-              (_selectedVideos.isNotEmpty &&
-                      _selectedVideos.length == downloadedVideos.length)
-                  ? Icons.check_box
-                  : _selectedVideos.isNotEmpty
-                  ? Icons.indeterminate_check_box
-                  : Icons.check_box_outline_blank,
-              color: _selectedVideos.isNotEmpty
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-            ),
-            onPressed: downloadedVideos.isEmpty ? null : _toggleSelectAll,
-            tooltip: 'Select All',
-          ),
-        ),
-        title: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          padding: const EdgeInsets.only(left: 8.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                height: 30,
-                width: 60,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      theme.colorScheme.onPrimary.withValues(alpha: 0.2),
-                      theme.colorScheme.onPrimary.withValues(alpha: 0.8),
-                    ],
-                  ),
-                  borderRadius: const BorderRadius.all(Radius.circular(10)),
-                  boxShadow: _selectedVideos.isNotEmpty
-                      ? [
-                          BoxShadow(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: 0.3,
-                            ),
-                            blurRadius: 2,
-                            offset: const Offset(0, 1),
-                          ),
-                        ]
-                      : [
-                          BoxShadow(
-                            color: Colors.black,
-                            blurRadius: 2,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
+              IconButton(
+                icon: Icon(
+                  _currentDir?.path == _rootDir?.path
+                      ? Icons.cached_rounded
+                      : Icons.arrow_back_rounded,
+                  color: theme.colorScheme.onSurface,
                 ),
-                child: Center(
-                  child: _selectedVideos.isEmpty
-                      ? const Icon(Icons.folder, size: 20, color: Colors.white)
-                      : TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedVideos.clear();
-                            });
-                          },
-                          child: Text(
-                            '${_selectedVideos.length}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                ),
+                onPressed: () async {
+                  if (!await _navigateBack()) {
+                    // Start navigated back successfully, stay on screen
+                  } else {
+                    _loadDownloadedVideos();
+                    // At root, let system handle pop (or do nothing if it's the main nav)
+                    // If you want home button to do something else when at root, handle here
+                  }
+                },
               ),
             ],
           ),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _getCurrentBreadcrumb(),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(height: 4),
+            Builder(
+              builder: (context) {
+                final counts = _getItemCounts();
+                final parts = <String>[];
+                if (counts['folders']! > 0) {
+                  parts.add(
+                    '${counts['folders']} folder${counts['folders']! > 1 ? 's' : ''}',
+                  );
+                }
+                if (counts['videos']! > 0) {
+                  parts.add(
+                    '${counts['videos']} video${counts['videos']! > 1 ? 's' : ''}',
+                  );
+                }
+                return Text(
+                  parts.isEmpty ? 'Empty' : parts.join(', '),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
         actions: [
           if (_selectedVideos.isNotEmpty)
@@ -263,210 +314,427 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
             ),
         ],
       ),
-      body: downloadedVideos.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.download_for_offline,
-                    size: 64,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No downloaded videos yet.',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+      // ignore: deprecated_member_use
+      body: WillPopScope(
+        onWillPop: _navigateBack,
+        child: _displayItems.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.folder_open,
+                      size: 64,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadDownloadedVideos,
-                    child: const Text('Refresh'),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 80), // Space for nav bar
-              itemCount: downloadedVideos.length,
-              itemBuilder: (context, index) {
-                final video = downloadedVideos[index];
-                final bool isMp4 = !video.url.toLowerCase().contains('.m3u8');
-                final isSelected = _selectedVideos.any(
-                  (v) => v.title == video.title,
-                );
+                    const SizedBox(height: 16),
+                    Text(
+                      'Empty Folder',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: _loadCurrentDir,
+                      child: const Text('Refresh'),
+                    ),
+                  ],
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.only(bottom: 80),
+                itemCount:
+                    _displayItems.length +
+                    (_getItemCounts()['folders']! > 0 &&
+                            _getItemCounts()['videos']! > 0
+                        ? 2
+                        : 0) +
+                    1, // +1 for the Select All button
+                itemBuilder: (context, index) {
+                  final counts = _getItemCounts();
+                  final hasFolders = counts['folders']! > 0;
+                  final hasVideos = counts['videos']! > 0;
+                  final hasBoth = hasFolders && hasVideos;
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8.0,
-                    vertical: 4.0,
-                  ),
-                  child: Card(
-                    elevation: 0,
-                    color: isSelected
-                        ? theme.colorScheme.primary.withValues(alpha: 0.05)
-                        : theme.cardTheme.color,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: isSelected
-                            ? theme.colorScheme.primary
-                            : theme.dividerColor.withValues(alpha: 0.1),
-                        width: 1,
-                      ),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      leading: SizedBox(
-                        width: 100,
-                        height: 60,
-                        child: Row(
-                          children: [
-                            Transform.scale(
-                              scale: 0.9,
-                              child: Checkbox(
-                                value: isSelected,
-                                activeColor: theme.colorScheme.primary,
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    if (value == true) {
-                                      _selectedVideos.add(video);
-                                    } else {
-                                      _selectedVideos.removeWhere(
-                                        (v) => v.title == video.title,
-                                      );
-                                    }
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.05,
-                                  ),
-                                  image: video.thumbnailUrl != null
-                                      ? DecorationImage(
-                                          image:
-                                              video.thumbnailUrl!.startsWith(
-                                                'http',
-                                              )
-                                              ? NetworkImage(
-                                                  video.thumbnailUrl!,
-                                                )
-                                              : FileImage(
-                                                      File(video.thumbnailUrl!),
-                                                    )
-                                                    as ImageProvider,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
-                                ),
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    if (video.thumbnailUrl == null)
-                                      Icon(
-                                        Icons.sd_card,
-                                        color: theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.5),
-                                        size: 30,
-                                      ),
-                                    Positioned(
-                                      bottom: 4,
-                                      right: 10,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.7,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          isMp4 ? 'MP4' : 'M3U8',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 6,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
+                  // 1. Select All Button at index 0
+                  if (index == 0) {
+                    final videosInFolder = _displayItems
+                        .whereType<VideoItem>()
+                        .toList();
+                    if (videosInFolder.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final isAllSelected =
+                        videosInFolder.isNotEmpty &&
+                        videosInFolder.every(
+                          (v) =>
+                              _selectedVideos.any((sv) => sv.title == v.title),
+                        );
+
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 25, top: 8),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              isAllSelected
+                                  ? Icons.check_box
+                                  : Icons.check_box_outline_blank,
+                              size: 22,
+                              color: isAllSelected
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurface.withValues(
+                                      alpha: 0.5,
                                     ),
-                                  ],
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                if (isAllSelected) {
+                                  _selectedVideos.clear();
+                                } else {
+                                  for (var v in videosInFolder) {
+                                    if (!_selectedVideos.any(
+                                      (sv) => sv.title == v.title,
+                                    )) {
+                                      _selectedVideos.add(v);
+                                    }
+                                  }
+                                }
+                              });
+                            },
+                            tooltip: isAllSelected
+                                ? 'Deselect All'
+                                : 'Select All',
+                          ),
+                          Text(
+                            isAllSelected ? 'Deselect All' : 'Select All',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Shift index due to Select All button
+                  final adjustedIndex = index - 1;
+
+                  // 2. Section headers
+                  if (hasBoth) {
+                    if (adjustedIndex == 0) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Text(
+                          'FOLDERS',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
+                            ),
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      );
+                    }
+                    if (adjustedIndex == counts['folders']! + 1) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                        child: Text(
+                          'VIDEOS',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
+                            ),
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      );
+                    }
+                  }
+
+                  // Adjust actualIndex for headers
+                  final actualIndex = hasBoth
+                      ? (adjustedIndex <= counts['folders']!
+                            ? adjustedIndex - 1
+                            : adjustedIndex - 2)
+                      : adjustedIndex;
+
+                  if (actualIndex < 0 || actualIndex >= _displayItems.length) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final item = _displayItems[actualIndex];
+
+                  if (item is Directory) {
+                    final folderName = item.path
+                        .split(Platform.pathSeparator)
+                        .last;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(
+                        left: 12,
+                        right: 12,
+                        top: 12,
+                      ),
+                      child: Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: theme.dividerColor.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        child: InkWell(
+                          onTap: () => _navigateToDir(item),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.onSurface,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.folder,
+                                    size: 40,
+                                    color: theme.colorScheme.surface.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        folderName,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.colorScheme.onSurface,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Tap to open',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: theme.colorScheme.onSurface
+                                              .withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.chevron_right,
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final video = item as VideoItem;
+                  final bool isMp4 = !video.url.toLowerCase().contains('.m3u8');
+                  final isSelected = _selectedVideos.any(
+                    (v) => v.title == video.title,
+                  );
+
+                  return Padding(
+                    padding: const EdgeInsets.only(
+                      left: 12,
+                      right: 12,
+                      top: 12,
+                    ),
+                    child: Card(
+                      elevation: 0,
+                      color: isSelected
+                          ? theme.colorScheme.primary.withValues(alpha: 0.05)
+                          : theme.cardTheme.color,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.dividerColor.withValues(alpha: 0.1),
+                          width: 1,
+                        ),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        leading: SizedBox(
+                          width: 100,
+                          height: 60,
+                          child: Row(
+                            children: [
+                              Transform.scale(
+                                scale: 0.9,
+                                child: Checkbox(
+                                  value: isSelected,
+                                  activeColor: theme.colorScheme.primary,
+                                  onChanged: (bool? value) {
+                                    setState(() {
+                                      if (value == true) {
+                                        _selectedVideos.add(video);
+                                      } else {
+                                        _selectedVideos.removeWhere(
+                                          (v) => v.title == video.title,
+                                        );
+                                      }
+                                    });
+                                  },
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      title: Text(
-                        video.title,
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        isMp4 ? 'Format: MP4' : 'Format: HLS (m3u8)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.5,
-                          ),
-                        ),
-                      ),
-                      trailing: IconButton(
-                        icon: Icon(
-                          Icons.play_circle_fill,
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.3,
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => VideoPlayerScreen(
-                                videoUrl: video.url,
-                                title: video.title,
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.05),
+                                    image: video.thumbnailUrl != null
+                                        ? DecorationImage(
+                                            image:
+                                                video.thumbnailUrl!.startsWith(
+                                                  'http',
+                                                )
+                                                ? NetworkImage(
+                                                    video.thumbnailUrl!,
+                                                  )
+                                                : FileImage(
+                                                        File(
+                                                          video.thumbnailUrl!,
+                                                        ),
+                                                      )
+                                                      as ImageProvider,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : null,
+                                  ),
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      if (video.thumbnailUrl == null)
+                                        Icon(
+                                          Icons.sd_card,
+                                          color: theme.colorScheme.onSurface
+                                              .withValues(alpha: 0.5),
+                                          size: 30,
+                                        ),
+                                      Positioned(
+                                        bottom: 4,
+                                        right: 10,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.7,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            isMp4 ? 'MP4' : 'M3U8',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 6,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
+                            ],
+                          ),
+                        ),
+                        title: Text(
+                          video.title,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          isMp4 ? 'Format: MP4' : 'Format: HLS (m3u8)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
                             ),
-                          ).then((_) => _loadDownloadedVideos());
+                          ),
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(
+                            Icons.play_circle_fill,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => VideoPlayerScreen(
+                                  videoUrl: video.url,
+                                  title: video.title,
+                                ),
+                              ),
+                            ).then((_) => _loadCurrentDir());
+                          },
+                        ),
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              _selectedVideos.removeWhere(
+                                (v) => v.title == video.title,
+                              );
+                            } else {
+                              _selectedVideos.add(video);
+                            }
+                          });
                         },
                       ),
-                      onTap: () {
-                        setState(() {
-                          if (isSelected) {
-                            _selectedVideos.removeWhere(
-                              (v) => v.title == video.title,
-                            );
-                          } else {
-                            _selectedVideos.add(video);
-                          }
-                        });
-                      },
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
+      ),
     );
   }
 }

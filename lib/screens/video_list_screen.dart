@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hls_parser/flutter_hls_parser.dart';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
@@ -9,8 +10,10 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:gal/gal.dart';
 
 import '../models/video_item.dart';
-import '../widgets/radio_group.dart' hide RadioGroup;
 import 'video_player_screen.dart';
+import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new/return_code.dart';
+import 'dart:async';
 
 class VideoListScreen extends StatefulWidget {
   final List<VideoItem> onlineVideos;
@@ -26,12 +29,20 @@ class VideoListScreen extends StatefulWidget {
   State<VideoListScreen> createState() => _VideoListScreenState();
 }
 
-class _VideoListScreenState extends State<VideoListScreen> {
+class _VideoListScreenState extends State<VideoListScreen>
+    with WidgetsBindingObserver {
   final Set<VideoItem> _selectedVideos = {};
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<Directory> _getDownloadsDir() async {
@@ -41,6 +52,57 @@ class _VideoListScreenState extends State<VideoListScreen> {
     }
     final dir = await getApplicationDocumentsDirectory();
     return Directory('${dir.path}/downloads');
+  }
+
+  Future<String?> _captureVideoThumbnail(
+    String videoPath,
+    String outputPath, {
+    String? thumbnailUrl,
+  }) async {
+    final isDesktop =
+        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+
+    if (isDesktop) {
+      debugPrint('Desktop: Downloading thumbnail from $thumbnailUrl');
+      try {
+        final dio = Dio();
+        if (thumbnailUrl != null && thumbnailUrl.trim().isNotEmpty) {
+          await dio.download(thumbnailUrl, outputPath);
+        } else {
+          debugPrint('Desktop: No thumbnail URL provided');
+          return null;
+        }
+        if (await File(outputPath).exists()) {
+          debugPrint(
+            'Desktop: Thumbnail downloaded successfully to $outputPath',
+          );
+          return outputPath;
+        }
+      } catch (e) {
+        debugPrint('Desktop: Failed to download thumbnail from URL: $e');
+        // Fallback to MediaKit if download fails
+      }
+    } else {
+      // Fallback to FFmpeg (only for mobile platforms)
+      try {
+        debugPrint('FFmpeg: Capturing thumbnail from $videoPath');
+        final cmd = '-y -ss 00:00:10 -i "$videoPath" -frames:v 1 "$outputPath"';
+        final session = await FFmpegKit.execute(cmd);
+        final returnCode = await session.getReturnCode();
+
+        if (ReturnCode.isSuccess(returnCode)) {
+          if (await File(outputPath).exists()) {
+            debugPrint('FFmpeg: Thumbnail captured successfully.');
+            return outputPath;
+          }
+        }
+        return null;
+      } catch (e) {
+        debugPrint('Error in _captureVideoThumbnail: $e');
+        return null;
+      }
+    }
+    return null;
   }
 
   Future<bool> _validateM3U8(String url) async {
@@ -60,33 +122,84 @@ class _VideoListScreenState extends State<VideoListScreen> {
     }
   }
 
-  void _showAddVideoDialog() {
-    final bulkController = TextEditingController();
+  void _showAddVideoDialog({String? initialText}) {
+    final bulkController = TextEditingController(text: initialText);
     bool isValidating = false;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Add M3U8 Videos'),
-              content: Column(
+            final theme = Theme.of(context);
+            return Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+              ),
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Add M3U8 Videos',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   const Text(
                     'Paste one or more M3U8 URLs.\nFormat: "Title | URL" or just "URL"',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 15),
                   TextField(
                     controller: bulkController,
                     maxLines: 5,
-                    decoration: const InputDecoration(
+                    autofocus: true,
+                    decoration: InputDecoration(
                       hintText:
-                          'Title | URL | Thumbnail\nMy Video | https://example.com/playlist.m3u8 | https://example.com/thumb.jpg',
-                      border: OutlineInputBorder(),
+                          'Title | URL | Thumbnail\nMy Video | https://example.com/playlist.m3u8',
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.3),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: const Icon(
+                          Icons.content_paste,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () async {
+                          final data = await Clipboard.getData(
+                            Clipboard.kTextPlain,
+                          );
+                          if (data?.text != null) {
+                            bulkController.text = data!.text!;
+                          }
+                        },
+                      ),
                     ),
                   ),
                   if (isValidating) ...[
@@ -94,87 +207,101 @@ class _VideoListScreenState extends State<VideoListScreen> {
                     const LinearProgressIndicator(),
                     const Padding(
                       padding: EdgeInsets.only(top: 8.0),
-                      child: Text('Validating links...'),
+                      child: Text(
+                        'Validating links...',
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: isValidating
-                      ? null
-                      : () async {
-                          final input = bulkController.text.trim();
-                          if (input.isEmpty) return;
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: theme.colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: isValidating
+                        ? null
+                        : () async {
+                            final input = bulkController.text.trim();
+                            if (input.isEmpty) return;
 
-                          setDialogState(() => isValidating = true);
+                            setDialogState(() => isValidating = true);
 
-                          final lines = input.split('\n');
-                          final List<VideoItem> validItems = [];
+                            final lines = input.split('\n');
+                            final List<VideoItem> validItems = [];
 
-                          for (var line in lines) {
-                            line = line.trim();
-                            if (line.isEmpty) continue;
+                            for (var line in lines) {
+                              line = line.trim();
+                              if (line.isEmpty) continue;
 
-                            String title;
-                            String url;
-                            String? thumb;
+                              String title;
+                              String url;
+                              String? thumb;
 
-                            if (line.contains('|')) {
-                              final parts = line.split('|');
-                              if (parts.length >= 3) {
-                                title = parts[0].trim();
-                                url = parts[1].trim();
-                                thumb = parts[2].trim();
-                              } else if (parts.length == 2) {
-                                title = parts[0].trim();
-                                url = parts[1].trim();
+                              if (line.contains('|')) {
+                                final parts = line.split('|');
+                                if (parts.length >= 3) {
+                                  title = parts[0].trim();
+                                  url = parts[1].trim();
+                                  thumb = parts[2].trim();
+                                } else if (parts.length == 2) {
+                                  title = parts[0].trim();
+                                  url = parts[1].trim();
+                                } else {
+                                  url = parts[0].trim();
+                                  title = url.split('/').last.split('?').first;
+                                }
                               } else {
-                                url = parts[0].trim();
+                                url = line;
                                 title = url.split('/').last.split('?').first;
+                                if (title.isEmpty) title = 'Untitled Video';
                               }
-                            } else {
-                              url = line;
-                              title = url.split('/').last.split('?').first;
-                              if (title.isEmpty) title = 'Untitled Video';
+
+                              if (await _validateM3U8(url)) {
+                                validItems.add(
+                                  VideoItem(
+                                    title: title,
+                                    url: url,
+                                    thumbnailUrl: thumb,
+                                  ),
+                                );
+                              }
                             }
 
-                            if (await _validateM3U8(url)) {
-                              validItems.add(
-                                VideoItem(
-                                  title: title,
-                                  url: url,
-                                  thumbnailUrl: thumb,
+                            setDialogState(() => isValidating = false);
+
+                            if (validItems.isNotEmpty) {
+                              final newList = List<VideoItem>.from(
+                                widget.onlineVideos,
+                              );
+                              newList.insertAll(0, validItems);
+                              widget.onVideosUpdated(newList);
+                              Clipboard.setData(const ClipboardData(text: ''));
+                              if (!context.mounted) return;
+                              Navigator.pop(context);
+                            } else {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('No valid M3U8 URLs found'),
                                 ),
                               );
                             }
-                          }
-
-                          setDialogState(() => isValidating = false);
-
-                          if (validItems.isNotEmpty) {
-                            final newList = List<VideoItem>.from(
-                              widget.onlineVideos,
-                            );
-                            newList.insertAll(0, validItems);
-                            widget.onVideosUpdated(newList);
-                            if (context.mounted) Navigator.pop(context);
-                          } else {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('No valid M3U8 URLs found'),
-                              ),
-                            );
-                          }
-                        },
-                  child: const Text('Add All'),
-                ),
-              ],
+                          },
+                    child: Text(
+                      'Add All',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         );
@@ -309,16 +436,32 @@ class _VideoListScreenState extends State<VideoListScreen> {
                 ],
               ),
             ),
+          ] else ...[
+            Padding(
+              padding: EdgeInsetsGeometry.only(right: 12.0),
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints.tightFor(width: 30, height: 30),
+                style: ButtonStyle(
+                  backgroundColor: WidgetStatePropertyAll(
+                    theme.colorScheme.primary.withValues(alpha: 0.2),
+                  ),
+                  shape: WidgetStatePropertyAll(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                icon: const Icon(Icons.add_rounded),
+                iconSize: 20,
+                color: theme.colorScheme.onPrimary,
+                onPressed: () => _showAddVideoDialog(),
+                tooltip: 'Add Video',
+              ),
+            ),
           ],
         ],
       ),
-      floatingActionButton: FloatingActionButton.small(
-        onPressed: _showAddVideoDialog,
-        backgroundColor: theme.colorScheme.onPrimary,
-        foregroundColor: theme.colorScheme.onSurface,
-        child: const Icon(Icons.add, size: 24),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: ListView.builder(
         itemCount: widget.onlineVideos.length,
         itemBuilder: (context, index) {
@@ -524,7 +667,7 @@ class _VideoListScreenState extends State<VideoListScreen> {
       _selectedVideos.clear();
     });
 
-    String? lastSelectedQuality;
+    DownloadSelection? lastSelection;
 
     for (int i = 0; i < videosToDownload.length; i++) {
       final video = videosToDownload[i];
@@ -537,11 +680,14 @@ class _VideoListScreenState extends State<VideoListScreen> {
         context,
         video,
         queueProgress: '(${i + 1}/${videosToDownload.length}) ',
-        preferredQuality: lastSelectedQuality,
+        preferredQuality: lastSelection?.quality,
+        preferredGroupName: lastSelection?.groupName,
+        showSuccessSnackBar:
+            false, // Don't show individual alerts for batch downloads
       );
 
-      if (lastSelectedQuality == null && result != null) {
-        lastSelectedQuality = result;
+      if (lastSelection == null && result != null) {
+        lastSelection = result;
       }
     }
 
@@ -552,13 +698,15 @@ class _VideoListScreenState extends State<VideoListScreen> {
     }
   }
 
-  Future<String?> _startDownloadWithOptions(
+  Future<DownloadSelection?> _startDownloadWithOptions(
     BuildContext context,
     VideoItem video, {
     String queueProgress = '',
     String? preferredQuality,
+    String? preferredGroupName,
+    bool showSuccessSnackBar = true,
   }) async {
-    final theme = Theme.of(context);
+    // final theme = Theme.of(context);
     if (Platform.isAndroid) {
       final deviceInfo = DeviceInfoPlugin();
       final androidInfo = await deviceInfo.androidInfo;
@@ -580,6 +728,7 @@ class _VideoListScreenState extends State<VideoListScreen> {
     CancelToken cancelToken = CancelToken();
 
     String? selected;
+    String? groupName;
 
     try {
       final dio = Dio();
@@ -654,52 +803,152 @@ class _VideoListScreenState extends State<VideoListScreen> {
         }
       }
 
+      final groupNameController = TextEditingController(
+        text: preferredGroupName ?? '',
+      );
+
       if (selected == null) {
         if (!context.mounted) return null;
-        selected = await showDialog<String>(
+        selected = await showModalBottomSheet<String>(
           context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: theme.cardTheme.color,
-            title: Text(
-              'Select Quality',
-              style: TextStyle(color: theme.colorScheme.onSurface),
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: RadioGroup<String>(
-                groupValue: selected,
-                onChanged: (val) => Navigator.pop(context, val),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: options.length,
-                  itemBuilder: (context, i) => RadioListTileWrapper<String>(
-                    title: Text(options[i]),
-                    value: options[i],
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) {
+            String? tempSelected = options.isNotEmpty ? options.first : null;
+            return StatefulBuilder(
+              builder: (context, setDialogState) {
+                final theme = Theme.of(context);
+                return Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
                   ),
-                ),
-              ),
-            ),
-          ),
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 20,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Download Options',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 15),
+                      TextField(
+                        controller: groupNameController,
+                        decoration: InputDecoration(
+                          labelText: 'Group Name (Album)',
+                          hintText: 'Optional',
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.3),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Select Quality:',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Flexible(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: theme.dividerColor.withValues(alpha: 0.1),
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            separatorBuilder: (context, index) => Divider(
+                              height: 1,
+                              color: theme.dividerColor.withValues(alpha: 0.1),
+                            ),
+                            itemBuilder: (context, i) => RadioListTile<String>(
+                              title: Text(
+                                options[i],
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              value: options[i],
+                              // ignore: deprecated_member_use
+                              groupValue: tempSelected,
+                              activeColor: theme.colorScheme.primary,
+                              contentPadding: EdgeInsets.zero,
+                              // ignore: deprecated_member_use
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  tempSelected = val;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: theme.colorScheme.onSurface,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: tempSelected != null
+                            ? () => Navigator.pop(context, tempSelected)
+                            : null,
+                        child: const Text(
+                          'Start Download',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         );
       }
+
+      groupName = groupNameController.text.trim().isNotEmpty
+          ? groupNameController.text.trim()
+          : null;
 
       if (selected == null) return null;
 
       final selectedVariant = variants[options.indexOf(selected)];
 
       final downloadsDir = await _getDownloadsDir();
-      final videoDir = Directory('${downloadsDir.path}/${video.title}');
+      final String path = groupName != null
+          ? '${downloadsDir.path}/$groupName/${video.title}'
+          : '${downloadsDir.path}/${video.title}';
+      final videoDir = Directory(path);
       await videoDir.create(recursive: true);
-
-      // Download thumbnail if available
-      if (video.thumbnailUrl != null) {
-        try {
-          final thumbPath = '${videoDir.path}/thumbnail.jpg';
-          await dio.download(video.thumbnailUrl!, thumbPath);
-        } catch (e) {
-          debugPrint('Error downloading thumbnail: $e');
-        }
-      }
 
       final masterPath = '${videoDir.path}/master.m3u8';
       await File(masterPath).writeAsString(response.data);
@@ -711,6 +960,17 @@ class _VideoListScreenState extends State<VideoListScreen> {
       );
       final variantPath = '${videoDir.path}/playlist.m3u8';
       await File(variantPath).writeAsString(variantResponse.data);
+
+      final thumbPath = '${videoDir.path}/thumbnail.jpg';
+
+      if (video.thumbnailUrl != null) {
+        try {
+          await dio.download(video.thumbnailUrl!, thumbPath);
+          debugPrint('Thumbnail downloaded successfully.');
+        } catch (e) {
+          debugPrint('Error downloading thumbnail: $e');
+        }
+      }
 
       final variantPlaylist = await HlsPlaylistParser.create().parseString(
         Uri.parse(selectedVariant.url.toString()),
@@ -732,46 +992,109 @@ class _VideoListScreenState extends State<VideoListScreen> {
       }
 
       int downloaded = 0;
-      if (!context.mounted) return selected;
-      showDialog(
+      final config = DownloadSelection(selected, groupName);
+
+      if (!context.mounted) return config;
+      showModalBottomSheet(
         context: context,
-        barrierDismissible: false,
+        isDismissible: false,
+        enableDrag: false,
+        backgroundColor: Colors.transparent,
         builder: (context) => ListenableBuilder(
           listenable: Listenable.merge([
             progressNotifier,
             countNotifier,
             statusNotifier,
           ]),
-          builder: (context, _) => AlertDialog(
-            title: Text(
-              statusNotifier.value == 'Downloading...'
-                  ? '${queueProgress}Downloading ${video.title}'
-                  : '$queueProgress${statusNotifier.value}',
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (statusNotifier.value == 'Downloading...') ...[
-                  LinearProgressIndicator(value: progressNotifier.value),
-                  const SizedBox(height: 10),
-                  Text('${countNotifier.value} / $total segments'),
-                ] else ...[
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 10),
-                  const Text('Merging segments into MP4...'),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  cancelToken.cancel();
-                  Navigator.pop(context);
-                },
-                child: const Text('Cancel'),
+          builder: (context, _) {
+            final theme = Theme.of(context);
+            return Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
               ),
-            ],
-          ),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          statusNotifier.value == 'Downloading...'
+                              ? '${queueProgress}Downloading'
+                              : '$queueProgress${statusNotifier.value}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${(progressNotifier.value * 100).toInt()}%',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    video.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (statusNotifier.value == 'Downloading...') ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: progressNotifier.value,
+                        minHeight: 10,
+                        backgroundColor: theme.colorScheme.primary.withValues(
+                          alpha: 0.1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '${countNotifier.value} / $total segments',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ] else ...[
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 12),
+                    const Text('Merging segments into MP4...'),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: theme.colorScheme.error),
+                        foregroundColor: theme.colorScheme.error,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        cancelToken.cancel();
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Cancel Download'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       );
 
@@ -808,7 +1131,7 @@ class _VideoListScreenState extends State<VideoListScreen> {
         );
       }
 
-      if (!context.mounted) return selected;
+      if (!context.mounted) return config;
       statusNotifier.value = 'Merging segments into MP4...';
 
       final outputPath = '${videoDir.path}/output.mp4';
@@ -842,34 +1165,54 @@ class _VideoListScreenState extends State<VideoListScreen> {
         await raf.close();
       }
 
+      // After merge is successful, if we don't have a thumbnail yet, capture it from the local MP4
+      if (!await File(thumbPath).exists()) {
+        await _captureVideoThumbnail(
+          outputPath,
+          thumbPath,
+          thumbnailUrl: video.thumbnailUrl,
+        );
+      }
+
       if (context.mounted) {
         statusNotifier.value = 'Exporting to Gallery...';
       }
 
-      await Gal.putVideo(outputPath);
+      await Gal.putVideo(outputPath, album: groupName);
 
       if (context.mounted) {
         Navigator.pop(context); // Close progress dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${video.title} saved to Gallery successfully!'),
-          ),
-        );
+        if (showSuccessSnackBar) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${video.title} saved to Gallery successfully!'),
+            ),
+          );
+        }
       }
-      return selected;
+      return config;
     } catch (e) {
-      if (!context.mounted) return selected;
+      if (!context.mounted) {
+        return selected != null ? DownloadSelection(selected, groupName) : null;
+      }
       if (Navigator.canPop(context)) Navigator.pop(context);
       if (e != 'Cancelled') {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Download failed: $e')));
       }
-      return selected;
+      return selected != null ? DownloadSelection(selected, groupName) : null;
     } finally {
       progressNotifier.dispose();
       countNotifier.dispose();
       statusNotifier.dispose();
     }
   }
+}
+
+class DownloadSelection {
+  final String quality;
+  final String? groupName;
+
+  DownloadSelection(this.quality, this.groupName);
 }

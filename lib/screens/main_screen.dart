@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'video_list_screen.dart';
 import 'downloaded_videos_screen.dart';
 import 'home_screen.dart';
+import 'source_list_screen.dart';
 import '../models/video_item.dart';
 
 class MainScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class _MainScreenState extends State<MainScreen> {
   List<VideoItem> onlineVideos = [];
   List<String> contentAlert = [
     'Home is a browser that can capture m3u8 streams.',
+    'Sources is a List of videos that can be downloaded.',
     'Online is a List of videos that can be downloaded.',
     'Offline is a List of downloaded videos.',
   ];
@@ -50,6 +52,13 @@ class _MainScreenState extends State<MainScreen> {
           });
         },
       ),
+      SourceListScreen(
+        onTabRequested: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+      ),
       VideoListScreen(
         onlineVideos: onlineVideos,
         onVideosUpdated: (newList) {
@@ -58,7 +67,7 @@ class _MainScreenState extends State<MainScreen> {
           });
         },
       ),
-      const DownloadedVideosScreen(),
+      DownloadedVideosScreen(),
     ];
 
     final theme = Theme.of(context);
@@ -69,36 +78,77 @@ class _MainScreenState extends State<MainScreen> {
         leading: _selectedIndex == 0
             ? SizedBox.shrink()
             : IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 15,
+                  color: theme.colorScheme.onPrimary,
+                ),
                 onPressed: () => setState(() => _selectedIndex = 0),
               ),
-        toolbarHeight: 35,
+        toolbarHeight: 50,
         centerTitle: true,
         title: SizedBox(
-          height: 20,
-          child: Row(
+          height: 50,
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _selectedIndex == 0
-                  ? Image.asset('assets/icon/icon.png', scale: 1.0)
+                  ? Image.asset(
+                      'assets/icon/icon.png',
+                      width: 15,
+                      colorBlendMode: BlendMode.color,
+                      color: theme.colorScheme.onPrimary,
+                    )
                   : _selectedIndex == 1
-                  ? Icon(Icons.downloading)
-                  : Icon(Icons.sd_card_rounded),
-              SizedBox(width: 5),
-              Text(
-                _selectedIndex == 0
-                    ? 'OldManBrowser'
-                    : _selectedIndex == 1
-                    ? 'Onlines'
-                    : 'Downloaded',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-              ),
+                  ? Icon(
+                      Icons.connected_tv_rounded,
+                      color: theme.colorScheme.onPrimary,
+                      size: 15,
+                    )
+                  : _selectedIndex == 2
+                  ? Icon(
+                      Icons.cloud_download_rounded,
+                      color: theme.colorScheme.onPrimary,
+                      size: 15,
+                    )
+                  : Icon(
+                      Icons.folder_copy_rounded,
+                      color: theme.colorScheme.onPrimary,
+                      size: 15,
+                    ),
+              SizedBox(height: 2),
+              _selectedIndex == 0
+                  ? Text(
+                      'OM Browser',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    )
+                  : Text(
+                      _selectedIndex == 1
+                          ? 'Sources'
+                          : _selectedIndex == 2
+                          ? 'Online'
+                          : 'Offline',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
             ],
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, size: 20),
+            icon: Icon(
+              Icons.info_outline_rounded,
+              size: 15,
+              color: theme.colorScheme.onPrimary,
+            ),
             onPressed: () {
               showDialog(
                 context: context,
@@ -163,19 +213,30 @@ class _MainScreenState extends State<MainScreen> {
           unselectedFontSize: 0,
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.language),
+              icon: Image.asset(
+                'assets/icon/icon.png',
+                width: 18,
+                colorBlendMode: BlendMode.color,
+                color: theme.colorScheme.surface,
+              ),
               label: 'Home',
               tooltip: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.connected_tv_rounded),
+              label: 'Sources',
+              tooltip: 'Sources',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.cloud_download_rounded),
               label: 'Online',
               tooltip: 'Online',
             ),
+
             BottomNavigationBarItem(
-              icon: Icon(Icons.snippet_folder_rounded),
+              icon: Icon(Icons.folder_copy_rounded),
               label: 'Offline',
               tooltip: 'Offline',
             ),
