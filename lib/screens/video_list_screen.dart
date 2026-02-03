@@ -8,11 +8,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:gal/gal.dart';
+import 'package:path/path.dart' as p;
 
 import '../models/video_item.dart';
 import 'video_player_screen.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'dart:async';
 
 class VideoListScreen extends StatefulWidget {
@@ -32,6 +35,9 @@ class VideoListScreen extends StatefulWidget {
 class _VideoListScreenState extends State<VideoListScreen>
     with WidgetsBindingObserver {
   final Set<VideoItem> _selectedVideos = {};
+  bool _mediaKitInitialized = false;
+  late final Player _player;
+  late final VideoController _videoController;
 
   @override
   void initState() {
@@ -39,8 +45,19 @@ class _VideoListScreenState extends State<VideoListScreen>
     WidgetsBinding.instance.addObserver(this);
   }
 
+  void _initMediaKit() {
+    if (!_mediaKitInitialized) {
+      _player = Player();
+      _videoController = VideoController(_player);
+      _mediaKitInitialized = true;
+    }
+  }
+
   @override
   void dispose() {
+    if (_mediaKitInitialized) {
+      _player.dispose();
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -51,42 +68,59 @@ class _VideoListScreenState extends State<VideoListScreen>
       return Directory('${dir?.path}/downloads');
     }
     final dir = await getApplicationDocumentsDirectory();
-    return Directory('${dir.path}/downloads');
+    return Directory(p.join(dir.path, 'downloads'));
+  }
+
+  String _sanitizeFolderName(String name) {
+    // Remove characters that are illegal in file names on most systems (especially Windows)
+    return name.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_').trim();
   }
 
   Future<String?> _captureVideoThumbnail(
     String videoPath,
     String outputPath, {
-    String? thumbnailUrl,
+    required Duration thumbnailSeekPosition,
   }) async {
     final isDesktop =
         Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
     if (isDesktop) {
-      debugPrint('Desktop: Downloading thumbnail from $thumbnailUrl');
+      debugPrint('MediaKit: Capturing thumbnail from $videoPath');
+      _initMediaKit();
       try {
-        final dio = Dio();
-        if (thumbnailUrl != null && thumbnailUrl.trim().isNotEmpty) {
-          await dio.download(thumbnailUrl, outputPath);
-        } else {
-          debugPrint('Desktop: No thumbnail URL provided');
-          return null;
-        }
-        if (await File(outputPath).exists()) {
-          debugPrint(
-            'Desktop: Thumbnail downloaded successfully to $outputPath',
-          );
+        await _player.open(Media(videoPath), play: false);
+
+        // Wait for the player to be ready and have video dimensions
+        await _player.stream.width
+            .firstWhere((w) => w != null && w > 0)
+            .timeout(const Duration(seconds: 5), onTimeout: () => 0);
+
+        // Seek a bit into the video to avoid early black frames
+        await _player.seek(thumbnailSeekPosition);
+
+        // Give the decoder a moment to settle after the seek
+        await Future.delayed(const Duration(milliseconds: 1000));
+
+        final Uint8List? screenshot = await _player.screenshot();
+        if (screenshot != null) {
+          await File(outputPath).writeAsBytes(screenshot);
+          debugPrint('MediaKit: Thumbnail saved to $outputPath');
           return outputPath;
         }
       } catch (e) {
-        debugPrint('Desktop: Failed to download thumbnail from URL: $e');
-        // Fallback to MediaKit if download fails
+        debugPrint('MediaKit capture failed: $e');
+      } finally {
+        // Don't dispose the player here as it's shared
+        await _player.pause();
       }
+      return null;
     } else {
       // Fallback to FFmpeg (only for mobile platforms)
       try {
         debugPrint('FFmpeg: Capturing thumbnail from $videoPath');
-        final cmd = '-y -ss 00:00:10 -i "$videoPath" -frames:v 1 "$outputPath"';
+        final ss =
+            '${thumbnailSeekPosition.inHours.toString().padLeft(2, '0')}:${(thumbnailSeekPosition.inMinutes % 60).toString().padLeft(2, '0')}:${(thumbnailSeekPosition.inSeconds % 60).toString().padLeft(2, '0')}';
+        final cmd = '-y -ss $ss -i "$videoPath" -frames:v 1 "$outputPath"';
         final session = await FFmpegKit.execute(cmd);
         final returnCode = await session.getReturnCode();
 
@@ -98,11 +132,10 @@ class _VideoListScreenState extends State<VideoListScreen>
         }
         return null;
       } catch (e) {
-        debugPrint('Error in _captureVideoThumbnail: $e');
+        debugPrint('Error in  : $e');
         return null;
       }
     }
-    return null;
   }
 
   Future<bool> _validateM3U8(String url) async {
@@ -670,6 +703,7 @@ class _VideoListScreenState extends State<VideoListScreen>
     DownloadSelection? lastSelection;
 
     for (int i = 0; i < videosToDownload.length; i++) {
+      if (!mounted) break;
       final video = videosToDownload[i];
       debugPrint(
         'Starting sequential download ${i + 1}/${videosToDownload.length}: ${video.title}',
@@ -729,6 +763,7 @@ class _VideoListScreenState extends State<VideoListScreen>
 
     String? selected;
     String? groupName;
+    Duration thumbnailSeekPosition = const Duration(seconds: 5);
 
     try {
       final dio = Dio();
@@ -809,12 +844,19 @@ class _VideoListScreenState extends State<VideoListScreen>
 
       if (selected == null) {
         if (!context.mounted) return null;
+        _initMediaKit();
+        await _player.open(Media(video.url), play: false);
+        await Future.delayed(const Duration(seconds: 1));
+
+        if (!context.mounted) return null;
+
         selected = await showModalBottomSheet<String>(
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           builder: (context) {
             String? tempSelected = options.isNotEmpty ? options.first : null;
+            bool isGroupNameEmpty = preferredGroupName?.isEmpty ?? true;
             return StatefulBuilder(
               builder: (context, setDialogState) {
                 final theme = Theme.of(context);
@@ -853,6 +895,11 @@ class _VideoListScreenState extends State<VideoListScreen>
                       const SizedBox(height: 15),
                       TextField(
                         controller: groupNameController,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            isGroupNameEmpty = value.trim().isEmpty;
+                          });
+                        },
                         decoration: InputDecoration(
                           labelText: 'Group Name (Album)',
                           hintText: 'Optional',
@@ -862,6 +909,17 @@ class _VideoListScreenState extends State<VideoListScreen>
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            color: Colors.black,
+                            child: Video(controller: _videoController),
                           ),
                         ),
                       ),
@@ -918,7 +976,7 @@ class _VideoListScreenState extends State<VideoListScreen>
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: tempSelected != null
+                        onPressed: (tempSelected != null && !isGroupNameEmpty)
                             ? () => Navigator.pop(context, tempSelected)
                             : null,
                         child: const Text(
@@ -933,6 +991,10 @@ class _VideoListScreenState extends State<VideoListScreen>
             );
           },
         );
+        // Important: Capture position AFTER the bottom sheet is closed but BEFORE pausing/reopening
+        // This allows the user to seek in the preview and have that spot as their thumbnail.
+        thumbnailSeekPosition = _player.state.position;
+        await _player.pause();
       }
 
       groupName = groupNameController.text.trim().isNotEmpty
@@ -944,9 +1006,15 @@ class _VideoListScreenState extends State<VideoListScreen>
       final selectedVariant = variants[options.indexOf(selected)];
 
       final downloadsDir = await _getDownloadsDir();
-      final String path = groupName != null
-          ? '${downloadsDir.path}/$groupName/${video.title}'
-          : '${downloadsDir.path}/${video.title}';
+      final sanitizedTitle = _sanitizeFolderName(video.title);
+      final sanitizedGroup = groupName != null
+          ? _sanitizeFolderName(groupName)
+          : null;
+
+      final String path = sanitizedGroup != null
+          ? p.join(downloadsDir.path, sanitizedGroup, sanitizedTitle)
+          : p.join(downloadsDir.path, sanitizedTitle);
+
       final videoDir = Directory(path);
       await videoDir.create(recursive: true);
 
@@ -962,15 +1030,6 @@ class _VideoListScreenState extends State<VideoListScreen>
       await File(variantPath).writeAsString(variantResponse.data);
 
       final thumbPath = '${videoDir.path}/thumbnail.jpg';
-
-      if (video.thumbnailUrl != null) {
-        try {
-          await dio.download(video.thumbnailUrl!, thumbPath);
-          debugPrint('Thumbnail downloaded successfully.');
-        } catch (e) {
-          debugPrint('Error downloading thumbnail: $e');
-        }
-      }
 
       final variantPlaylist = await HlsPlaylistParser.create().parseString(
         Uri.parse(selectedVariant.url.toString()),
@@ -1070,7 +1129,7 @@ class _VideoListScreenState extends State<VideoListScreen>
                   ] else ...[
                     const CircularProgressIndicator(),
                     const SizedBox(height: 12),
-                    const Text('Merging segments into MP4...'),
+                    Text(statusNotifier.value),
                   ],
                   const SizedBox(height: 24),
                   SizedBox(
@@ -1165,12 +1224,13 @@ class _VideoListScreenState extends State<VideoListScreen>
         await raf.close();
       }
 
-      // After merge is successful, if we don't have a thumbnail yet, capture it from the local MP4
+      // After merge is successful, if we don't have a thumbnail yet, prompt to capture it
       if (!await File(thumbPath).exists()) {
+        statusNotifier.value = 'Capturing thumbnail...';
         await _captureVideoThumbnail(
           outputPath,
           thumbPath,
-          thumbnailUrl: video.thumbnailUrl,
+          thumbnailSeekPosition: thumbnailSeekPosition,
         );
       }
 

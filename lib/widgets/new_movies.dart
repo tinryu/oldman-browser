@@ -174,10 +174,10 @@ class _MovieListItemState extends State<_MovieListItem> {
                   ),
                 ),
                 Positioned(
-                  top: 0,
+                  top: 12,
                   left: 0,
                   child: Badge(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     backgroundColor: Colors.yellow.withValues(alpha: 0.5),
                     label: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -204,10 +204,11 @@ class _MovieListItemState extends State<_MovieListItem> {
                         ),
                       ],
                     ),
+                    child: Container(width: 15),
                   ),
                 ),
                 Positioned(
-                  top: 0,
+                  top: 5,
                   right: 0,
                   child: Badge(
                     padding: EdgeInsets.symmetric(horizontal: 4),
@@ -215,7 +216,7 @@ class _MovieListItemState extends State<_MovieListItem> {
                     label: Text(
                       widget.movie.year.toString(),
                       style: GoogleFonts.poppins(
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
                       ),

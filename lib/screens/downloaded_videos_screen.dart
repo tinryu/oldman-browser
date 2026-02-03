@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import '../models/video_item.dart';
 import 'video_player_screen.dart';
 
@@ -31,10 +32,10 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
   Future<Directory> _getDownloadsDir() async {
     if (Platform.isAndroid) {
       final dir = await getExternalStorageDirectory();
-      return Directory('${dir?.path}/downloads');
+      return Directory(p.join(dir?.path ?? '', 'downloads'));
     }
     final dir = await getApplicationDocumentsDirectory();
-    return Directory('${dir.path}/downloads');
+    return Directory(p.join(dir.path, 'downloads'));
   }
 
   Future<void> _loadDownloadedVideos() async {
@@ -48,6 +49,14 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
 
   Future<void> _loadCurrentDir() async {
     if (_currentDir == null) return;
+
+    if (!await _currentDir!.exists()) {
+      debugPrint(
+        'Current directory ${_currentDir!.path} not found. Falling back to root.',
+      );
+      _currentDir = _rootDir;
+      if (_currentDir == null) return;
+    }
 
     setState(() {
       _selectedVideos.clear();
@@ -73,10 +82,9 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
             if (await thumbFile.exists()) {
               thumbPath = thumbFile.path;
             }
-
             items.add(
               VideoItem(
-                title: entity.path.split(Platform.pathSeparator).last,
+                title: p.basename(entity.path),
                 url: isMp4 ? mp4File.path : 'file://${masterFile.path}',
                 thumbnailUrl: thumbPath,
               ),
@@ -119,17 +127,16 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
   }
 
   String _getCurrentBreadcrumb() {
-    if (_currentDir == null || _rootDir == null) return 'Roots /';
-    if (_currentDir!.path == _rootDir!.path) return 'Roots /';
+    if (_currentDir == null || _rootDir == null) return 'SD /';
+    if (_currentDir!.path == _rootDir!.path) return 'SD /';
 
-    final relativePath = _currentDir!.path.replaceFirst(_rootDir!.path, '');
-    final parts = relativePath
-        .split(Platform.pathSeparator)
-        .where((p) => p.isNotEmpty)
-        .toList();
+    final relativePath = p.relative(_currentDir!.path, from: _rootDir!.path);
+    if (relativePath == '.') return 'SD /';
 
-    if (parts.isEmpty) return 'Roots /';
-    return 'Roots / ${parts.join(' / ')}';
+    final parts = p.split(relativePath).where((p) => p.isNotEmpty).toList();
+
+    if (parts.isEmpty) return 'SD /';
+    return 'SD / ${parts.join(' / ')}';
   }
 
   Map<String, int> _getItemCounts() {
@@ -272,7 +279,7 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
             Text(
               _getCurrentBreadcrumb(),
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: theme.colorScheme.onSurface,
               ),
@@ -297,7 +304,7 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                 return Text(
                   parts.isEmpty ? 'Empty' : parts.join(', '),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 );
@@ -411,14 +418,6 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                                 ? 'Deselect All'
                                 : 'Select All',
                           ),
-                          Text(
-                            isAllSelected ? 'Deselect All' : 'Select All',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
                         ],
                       ),
                     );
@@ -477,16 +476,10 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                   final item = _displayItems[actualIndex];
 
                   if (item is Directory) {
-                    final folderName = item.path
-                        .split(Platform.pathSeparator)
-                        .last;
+                    final folderName = p.basename(item.path);
 
                     return Padding(
-                      padding: const EdgeInsets.only(
-                        left: 12,
-                        right: 12,
-                        top: 12,
-                      ),
+                      padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
                       child: Card(
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -503,52 +496,43 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(12),
+                                  width: 70,
+                                  height: 50,
+                                  padding: const EdgeInsets.all(5),
                                   decoration: BoxDecoration(
-                                    color: theme.colorScheme.onSurface,
+                                    color: theme.colorScheme.primary,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
-                                    Icons.folder,
+                                    Icons.folder_outlined,
                                     size: 40,
-                                    color: theme.colorScheme.surface.withValues(
-                                      alpha: 0.5,
-                                    ),
+                                    color: theme.colorScheme.surface,
                                   ),
                                 ),
                                 const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        folderName,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: theme.colorScheme.onSurface,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      folderName,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: theme.colorScheme.primary,
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Tap to open',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: theme.colorScheme.onSurface
-                                              .withValues(alpha: 0.5),
-                                        ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Tap to open',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: theme.colorScheme.onSurface
+                                            .withValues(alpha: 0.5),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.chevron_right,
-                                  color: theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.3,
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

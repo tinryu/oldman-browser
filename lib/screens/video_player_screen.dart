@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:better_player/better_player.dart';
 import 'package:media_kit/media_kit.dart';
@@ -62,6 +63,49 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _player.open(Media(widget.videoUrl));
   }
 
+  Future<void> screenshot() async {
+    try {
+      Uint8List? data;
+      if (_isDesktop) {
+        data = await _player.screenshot();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Screenshot not supported on this platform'),
+            ),
+          );
+        }
+        return;
+      }
+
+      if (data != null && mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Screenshot Captured'),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 400),
+              child: Image.memory(data!),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to take screenshot: $e')),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     if (_isDesktop) {
@@ -75,7 +119,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.title != null ? AppBar(title: Text(widget.title!)) : null,
+      appBar: AppBar(
+        title: Text(widget.title ?? 'Video Player'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.camera_alt),
+            onPressed: screenshot,
+            tooltip: 'Take Screenshot',
+          ),
+        ],
+      ),
       body: Center(
         child: AspectRatio(
           aspectRatio: 16 / 9,

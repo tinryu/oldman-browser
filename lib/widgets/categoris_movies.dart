@@ -74,11 +74,15 @@ class _CategoriMoviesState extends State<CategoriMovies> {
                   style: GoogleFonts.poppins(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.arrow_drop_down, color: Colors.white60),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.touch_app_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 20,
+                ),
               ],
             ),
           ),
@@ -135,25 +139,16 @@ class _CategoriMoviesState extends State<CategoriMovies> {
               ),
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      'Select Category',
-                      style: GoogleFonts.poppins(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
                   Expanded(
                     child: ListView.builder(
                       itemCount: categories.length,
                       itemBuilder: (context, index) {
                         final cat = categories[index];
                         return ListTile(
+                          leading: Icon(Icons.label_rounded, size: 20),
                           title: Text(
                             cat.name,
-                            style: GoogleFonts.poppins(fontSize: 15),
+                            style: GoogleFonts.poppins(fontSize: 16),
                           ),
                           onTap: () {
                             setState(() {
@@ -257,10 +252,10 @@ class _MovieListItemState extends State<_MovieListItem> {
                   ),
                 ),
                 Positioned(
-                  top: 0,
+                  top: 5,
                   right: 0,
                   child: Badge(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     backgroundColor: Colors.yellow.withValues(alpha: 0.5),
                     label: Row(
                       children: [
@@ -285,7 +280,7 @@ class _MovieListItemState extends State<_MovieListItem> {
                   ),
                 ),
                 Positioned(
-                  top: 0,
+                  top: 5,
                   left: 0,
                   child: Badge(
                     padding: EdgeInsets.symmetric(horizontal: 4),
@@ -293,11 +288,12 @@ class _MovieListItemState extends State<_MovieListItem> {
                     label: Text(
                       widget.movie.year.toString(),
                       style: GoogleFonts.poppins(
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
                       ),
                     ),
+                    child: Container(width: 15),
                   ),
                 ),
                 Padding(
