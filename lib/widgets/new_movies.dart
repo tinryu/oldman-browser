@@ -7,8 +7,8 @@ import '../models/movie.dart';
 import '../services/api_service.dart';
 
 class NewMovies extends StatefulWidget {
-  final Function(int) onTabRequested;
-  const NewMovies({super.key, required this.onTabRequested});
+  // final Function(int) onTabRequested;
+  const NewMovies({super.key});
 
   @override
   State<NewMovies> createState() => _NewMoviesState();
@@ -79,7 +79,7 @@ class _NewMoviesState extends State<NewMovies> {
               final movie = _movies[index];
               return _MovieListItem(
                 movie: movie,
-                onTabRequested: widget.onTabRequested,
+                // onTabRequested: widget.onTabRequested,
               );
             },
           ),
@@ -91,9 +91,8 @@ class _NewMoviesState extends State<NewMovies> {
 
 class _MovieListItem extends StatefulWidget {
   final Movie movie;
-  final Function(int) onTabRequested;
 
-  const _MovieListItem({required this.movie, required this.onTabRequested});
+  const _MovieListItem({required this.movie});
 
   @override
   State<_MovieListItem> createState() => _MovieListItemState();
@@ -143,15 +142,13 @@ class _MovieListItemState extends State<_MovieListItem> {
                     final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => SourceDetailScreen(
-                          movieId: widget.movie.id,
-                          onTabRequested: widget.onTabRequested,
-                        ),
+                        builder: (context) =>
+                            SourceDetailScreen(movieId: widget.movie.id),
                       ),
                     );
                     // If a tab index was returned, switch to that tab
                     if (result != null && result is int && context.mounted) {
-                      widget.onTabRequested(result);
+                      // widget.onTabRequested(result);
                     }
                   },
                   child: CachedNetworkImage(

@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:old_man_browser/screens/video_list_screen.dart';
 import '../../models/episode.dart';
 import '../../models/movie.dart';
 import '../../services/api_service.dart';
 
 class SourceDetailScreen extends StatefulWidget {
   final String movieId;
-  final Function(int) onTabRequested;
-  const SourceDetailScreen({
-    super.key,
-    required this.movieId,
-    required this.onTabRequested,
-  });
+  const SourceDetailScreen({super.key, required this.movieId});
 
   @override
   State<SourceDetailScreen> createState() => _SourceDetailScreenState();
@@ -22,12 +18,9 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
   final _api = ApiService();
   late Future<Movie> _future;
   var isExpanded = false;
-  late final Function(int) onTabRequested;
-
   @override
   void initState() {
     super.initState();
-    onTabRequested = widget.onTabRequested;
     _future = _api.fetchMovieById(widget.movieId);
   }
 
@@ -122,7 +115,14 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
                               tooltip: 'Online page',
                               onPressed: () {
                                 // Pop and return the tab index to switch to
-                                Navigator.of(context).pop(2);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => VideoListScreen(
+                                      onlineVideos: [],
+                                      onVideosUpdated: (newList) {},
+                                    ),
+                                  ),
+                                );
                               },
                             ),
                           ],

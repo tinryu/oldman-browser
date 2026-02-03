@@ -225,10 +225,8 @@ class _MovieListItemState extends State<_MovieListItem> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => SourceDetailScreen(
-                          movieId: widget.movie.id,
-                          onTabRequested: (index) {},
-                        ),
+                        builder: (context) =>
+                            SourceDetailScreen(movieId: widget.movie.id),
                       ),
                     );
                   },

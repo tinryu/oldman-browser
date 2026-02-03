@@ -52,13 +52,7 @@ class _MainScreenState extends State<MainScreen> {
           });
         },
       ),
-      SourceListScreen(
-        onTabRequested: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-      ),
+      SourceListScreen(),
       VideoListScreen(
         onlineVideos: onlineVideos,
         onVideosUpdated: (newList) {

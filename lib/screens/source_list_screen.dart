@@ -12,8 +12,7 @@ import '../../services/api_service.dart';
 import '../../widgets/movie_card.dart';
 
 class SourceListScreen extends StatefulWidget {
-  final Function(int) onTabRequested;
-  const SourceListScreen({super.key, required this.onTabRequested});
+  const SourceListScreen({super.key});
 
   @override
   State<SourceListScreen> createState() => _SourceListScreenState();
@@ -115,10 +114,7 @@ class _SourceListScreenState extends State<SourceListScreen> {
               ? Expanded(
                   child: Column(
                     children: [
-                      Expanded(
-                        flex: 1,
-                        child: NewMovies(onTabRequested: widget.onTabRequested),
-                      ),
+                      Expanded(flex: 1, child: NewMovies()),
                       Expanded(flex: 3, child: CategoriMovies()),
                     ],
                   ),
@@ -286,15 +282,12 @@ class _SourceListScreenState extends State<SourceListScreen> {
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => SourceDetailScreen(
-                    movieId: movie.id,
-                    onTabRequested: widget.onTabRequested,
-                  ),
+                  builder: (_) => SourceDetailScreen(movieId: movie.id),
                 ),
               );
               // If a tab index was returned, switch to that tab
               if (result != null && result is int) {
-                widget.onTabRequested(result);
+                // widget.onTabRequested(result);
               }
             },
           );
