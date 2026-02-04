@@ -29,20 +29,44 @@ class VideoListScreen extends StatefulWidget {
   });
 
   @override
-  State<VideoListScreen> createState() => _VideoListScreenState();
+  State<VideoListScreen> createState() => VideoListScreenState();
 }
 
-class _VideoListScreenState extends State<VideoListScreen>
+class VideoListScreenState extends State<VideoListScreen>
     with WidgetsBindingObserver {
   final Set<VideoItem> _selectedVideos = {};
   bool _mediaKitInitialized = false;
   late final Player _player;
   late final VideoController _videoController;
+  bool _hasValidClipboard = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    updateClipboardStatus();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      updateClipboardStatus();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    updateClipboardStatus();
+  }
+
+  @override
+  void dispose() {
+    if (_mediaKitInitialized) {
+      _player.dispose();
+    }
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   void _initMediaKit() {
@@ -53,13 +77,27 @@ class _VideoListScreenState extends State<VideoListScreen>
     }
   }
 
-  @override
-  void dispose() {
-    if (_mediaKitInitialized) {
-      _player.dispose();
+  Future<void> updateClipboardStatus() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text;
+
+      bool hasValidData = false;
+      if (text != null && text.trim().isNotEmpty) {
+        // Only trigger if it contains http or looks like a link to avoid being too intrusive
+        if (text.contains('http') || text.contains('.m3u8')) {
+          hasValidData = true;
+        }
+      }
+
+      if (mounted && _hasValidClipboard != hasValidData) {
+        setState(() {
+          _hasValidClipboard = hasValidData;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking clipboard: $e');
     }
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
   }
 
   Future<Directory> _getDownloadsDir() async {
@@ -199,15 +237,18 @@ class _VideoListScreenState extends State<VideoListScreen>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
                   const Text(
-                    'Paste one or more M3U8 URLs.\nFormat: "Title | URL" or just "URL"',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ' Paste one or more M3U8 URLs.',
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 5),
                   TextField(
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
+                      fontSize: 10,
+                    ),
                     controller: bulkController,
-                    maxLines: 5,
+                    maxLines: 3,
                     autofocus: true,
                     decoration: InputDecoration(
                       hintText:
@@ -220,10 +261,15 @@ class _VideoListScreenState extends State<VideoListScreen>
                         borderSide: BorderSide.none,
                       ),
                       suffixIcon: IconButton(
-                        icon: const Icon(
-                          Icons.content_paste,
-                          color: Colors.grey,
-                        ),
+                        icon: _hasValidClipboard
+                            ? Icon(
+                                Icons.content_paste_go,
+                                color: theme.colorScheme.onPrimary,
+                              )
+                            : Icon(
+                                Icons.content_paste_off,
+                                color: Colors.grey.withValues(alpha: 0.5),
+                              ),
                         onPressed: () async {
                           final data = await Clipboard.getData(
                             Clipboard.kTextPlain,
@@ -314,6 +360,7 @@ class _VideoListScreenState extends State<VideoListScreen>
                               newList.insertAll(0, validItems);
                               widget.onVideosUpdated(newList);
                               Clipboard.setData(const ClipboardData(text: ''));
+                              _hasValidClipboard = false;
                               if (!context.mounted) return;
                               Navigator.pop(context);
                             } else {
@@ -485,7 +532,11 @@ class _VideoListScreenState extends State<VideoListScreen>
                     ),
                   ),
                 ),
-                icon: const Icon(Icons.add_rounded),
+                icon: Icon(
+                  _hasValidClipboard
+                      ? Icons.content_paste_go_rounded
+                      : Icons.add,
+                ),
                 iconSize: 20,
                 color: theme.colorScheme.onPrimary,
                 onPressed: () => _showAddVideoDialog(),

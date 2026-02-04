@@ -8,7 +8,9 @@ import 'package:old_man_browser/screens/source_detail_screen.dart'
     show SourceDetailScreen;
 
 class CategoriMovies extends StatefulWidget {
-  const CategoriMovies({super.key});
+  final Function(int)? onTabRequested;
+
+  const CategoriMovies({super.key, this.onTabRequested});
 
   @override
   State<CategoriMovies> createState() => _CategoriMoviesState();
@@ -94,7 +96,10 @@ class _CategoriMoviesState extends State<CategoriMovies> {
                   itemCount: _movies.length,
                   itemBuilder: (context, index) {
                     final movie = _movies[index];
-                    return _MovieListItem(movie: movie);
+                    return _MovieListItem(
+                      movie: movie,
+                      onTabRequested: widget.onTabRequested,
+                    );
                   },
                 ),
               )
@@ -174,8 +179,9 @@ class _CategoriMoviesState extends State<CategoriMovies> {
 
 class _MovieListItem extends StatefulWidget {
   final Movie movie;
+  final Function(int)? onTabRequested;
 
-  const _MovieListItem({required this.movie});
+  const _MovieListItem({required this.movie, this.onTabRequested});
 
   @override
   State<_MovieListItem> createState() => _MovieListItemState();
@@ -221,14 +227,21 @@ class _MovieListItemState extends State<_MovieListItem> {
               fit: StackFit.expand,
               children: [
                 InkWell(
-                  onTap: () {
-                    Navigator.push(
+                  onTap: () async {
+                    final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) =>
                             SourceDetailScreen(movieId: widget.movie.id),
                       ),
                     );
+                    // If a tab index was returned, switch to that tab
+                    if (result != null &&
+                        result is int &&
+                        context.mounted &&
+                        widget.onTabRequested != null) {
+                      widget.onTabRequested!(result);
+                    }
                   },
                   child: CachedNetworkImage(
                     imageUrl: widget.movie.posterUrl,
@@ -251,11 +264,14 @@ class _MovieListItemState extends State<_MovieListItem> {
                 ),
                 Positioned(
                   top: 5,
-                  right: 0,
-                  child: Badge(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    backgroundColor: Colors.yellow.withValues(alpha: 0.5),
-                    label: Row(
+                  right: 5,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.yellow.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
                       children: [
                         Text(
                           widget.movie.lang.toString(),
@@ -279,11 +295,14 @@ class _MovieListItemState extends State<_MovieListItem> {
                 ),
                 Positioned(
                   top: 5,
-                  left: 0,
-                  child: Badge(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    backgroundColor: Colors.transparent,
-                    label: Text(
+                  left: 5,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
                       widget.movie.year.toString(),
                       style: GoogleFonts.poppins(
                         fontSize: 10,
@@ -291,7 +310,6 @@ class _MovieListItemState extends State<_MovieListItem> {
                         color: Colors.white,
                       ),
                     ),
-                    child: Container(width: 15),
                   ),
                 ),
                 Padding(

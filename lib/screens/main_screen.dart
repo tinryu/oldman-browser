@@ -14,6 +14,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  final GlobalKey<VideoListScreenState> _videoListKey = GlobalKey();
   List<VideoItem> onlineVideos = [];
   List<String> contentAlert = [
     'Home is a browser that can capture m3u8 streams.',
@@ -50,10 +51,23 @@ class _MainScreenState extends State<MainScreen> {
           setState(() {
             _selectedIndex = index;
           });
+          if (index == 2) {
+            _videoListKey.currentState?.updateClipboardStatus();
+          }
         },
       ),
-      SourceListScreen(),
+      SourceListScreen(
+        onTabRequested: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+          if (index == 2) {
+            _videoListKey.currentState?.updateClipboardStatus();
+          }
+        },
+      ),
       VideoListScreen(
+        key: _videoListKey,
         onlineVideos: onlineVideos,
         onVideosUpdated: (newList) {
           setState(() {
@@ -206,7 +220,12 @@ class _MainScreenState extends State<MainScreen> {
           selectedFontSize: 0,
           unselectedFontSize: 0,
           currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
+          onTap: (index) {
+            setState(() => _selectedIndex = index);
+            if (index == 2) {
+              _videoListKey.currentState?.updateClipboardStatus();
+            }
+          },
           items: [
             BottomNavigationBarItem(
               icon: Image.asset(

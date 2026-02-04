@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:old_man_browser/screens/video_list_screen.dart';
 import '../../models/episode.dart';
 import '../../models/movie.dart';
 import '../../services/api_service.dart';
+import 'video_player_screen.dart';
 
 class SourceDetailScreen extends StatefulWidget {
   final String movieId;
@@ -112,17 +112,10 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
                             ),
                             IconButton(
                               icon: const Icon(Icons.cloud_download),
-                              tooltip: 'Online page',
+                              tooltip: 'Go to Online page',
                               onPressed: () {
                                 // Pop and return the tab index to switch to
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => VideoListScreen(
-                                      onlineVideos: [],
-                                      onVideosUpdated: (newList) {},
-                                    ),
-                                  ),
-                                );
+                                Navigator.of(context).pop(2);
                               },
                             ),
                           ],
@@ -143,6 +136,21 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
                                   'Copied $label | $url to clipboard',
                                 ),
                               ),
+                            );
+                          },
+                          onPlay: (url, label) {
+                            showGeneralDialog(
+                              barrierColor: Colors.grey.withValues(alpha: 0.6),
+                              context: context,
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      AspectRatio(
+                                        aspectRatio: 16 / 9,
+                                        child: VideoPlayerScreen(
+                                          videoUrl: url,
+                                          title: label,
+                                        ),
+                                      ),
                             );
                           },
                         ),
@@ -269,7 +277,12 @@ class _ErrorState extends StatelessWidget {
 class _EpisodePicker extends StatefulWidget {
   final Movie movie;
   final Function(String, String) onCopy;
-  const _EpisodePicker({required this.movie, required this.onCopy});
+  final Function(String, String) onPlay;
+  const _EpisodePicker({
+    required this.movie,
+    required this.onCopy,
+    required this.onPlay,
+  });
 
   @override
   State<_EpisodePicker> createState() => _EpisodePickerState();
@@ -319,6 +332,7 @@ class _EpisodePickerState extends State<_EpisodePicker> {
             serverName: server.serverName,
             ep: ep,
             onCopy: widget.onCopy,
+            onPlay: widget.onPlay,
           ),
       ],
     );
@@ -329,11 +343,13 @@ class _EpisodeSourceCard extends StatelessWidget {
   final String serverName;
   final EpisodeSource ep;
   final Function(String, String) onCopy;
+  final Function(String, String) onPlay;
 
   const _EpisodeSourceCard({
     required this.serverName,
     required this.ep,
     required this.onCopy,
+    required this.onPlay,
   });
 
   @override
@@ -365,6 +381,7 @@ class _EpisodeSourceCard extends StatelessWidget {
                   type: 'M3U8',
                   url: ep.linkM3u8,
                   onCopy: () => onCopy(ep.linkM3u8, label),
+                  onPlay: () => onPlay(ep.linkM3u8, label),
                 ),
             ],
           ),
@@ -378,11 +395,13 @@ class _LinkTile extends StatelessWidget {
   final String type;
   final String url;
   final VoidCallback onCopy;
+  final VoidCallback onPlay;
 
   const _LinkTile({
     required this.type,
     required this.url,
     required this.onCopy,
+    required this.onPlay,
   });
 
   @override
@@ -390,6 +409,8 @@ class _LinkTile extends StatelessWidget {
     return ListTile(
       textColor: Colors.black,
       dense: true,
+      horizontalTitleGap: 5,
+      leading: IconButton(icon: const Icon(Icons.copy), onPressed: onCopy),
       title: Text(
         type,
         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
@@ -400,7 +421,10 @@ class _LinkTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontSize: 11),
       ),
-      trailing: IconButton(icon: const Icon(Icons.copy), onPressed: onCopy),
+      trailing: IconButton(
+        icon: const Icon(Icons.play_circle_outline),
+        onPressed: onPlay,
+      ),
     );
   }
 }

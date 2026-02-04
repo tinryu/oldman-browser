@@ -187,6 +187,77 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
     }
   }
 
+  Future<void> _renameItem(dynamic item) async {
+    String currentPath;
+    String currentName;
+
+    if (item is Directory) {
+      currentPath = item.path;
+      currentName = p.basename(item.path);
+    } else if (item is VideoItem) {
+      String videoDirString;
+      if (item.url.startsWith('file://')) {
+        final masterFile = File(item.url.replaceFirst('file://', ''));
+        videoDirString = masterFile.parent.path;
+      } else {
+        final mp4File = File(item.url);
+        videoDirString = mp4File.parent.path;
+      }
+      currentPath = videoDirString;
+      currentName = item.title;
+    } else {
+      return;
+    }
+
+    final controller = TextEditingController(text: currentName);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'New Name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+
+    if (newName == null || newName.isEmpty || newName == currentName) return;
+
+    try {
+      final parentDir = Directory(currentPath).parent;
+      final newPath = p.join(parentDir.path, newName);
+
+      if (await Directory(newPath).exists()) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Name already exists')));
+        }
+        return;
+      }
+
+      await Directory(currentPath).rename(newPath);
+      await _loadCurrentDir();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error renaming: $e')));
+      }
+    }
+  }
+
   Future<void> _deleteSelected() async {
     final count = _selectedVideos.length;
     final confirmed = await showDialog<bool>(
@@ -197,12 +268,17 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+            ),
           ),
         ],
       ),
@@ -248,6 +324,7 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
       appBar: AppBar(
         backgroundColor: theme.colorScheme.onPrimary.withValues(alpha: 0.1),
         foregroundColor: theme.colorScheme.onSurface,
+        toolbarHeight: 45,
         leading: Padding(
           padding: const EdgeInsets.only(left: 8.0),
           child: Row(
@@ -315,7 +392,10 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
         actions: [
           if (_selectedVideos.isNotEmpty)
             IconButton(
-              icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+              icon: Icon(
+                Icons.delete_outline,
+                color: theme.colorScheme.onPrimary,
+              ),
               onPressed: _deleteSelected,
               tooltip: 'Delete Selected',
             ),
@@ -384,8 +464,12 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                         );
 
                     return Padding(
-                      padding: const EdgeInsets.only(left: 25, top: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 25,
+                        vertical: 0,
+                      ),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           IconButton(
                             icon: Icon(
@@ -479,46 +563,72 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                     final folderName = p.basename(item.path);
 
                     return Padding(
-                      padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
-                      child: Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
+                      padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              theme.colorScheme.onPrimary.withValues(
+                                alpha: 0.2,
+                              ),
+                              theme.colorScheme.onPrimary.withValues(
+                                alpha: 0.1,
+                              ),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: theme.dividerColor.withValues(alpha: 0.1),
+                          border: Border.all(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.1,
+                            ),
                           ),
                         ),
                         child: InkWell(
                           onTap: () => _navigateToDir(item),
+                          onLongPress: () => _renameItem(item),
                           borderRadius: BorderRadius.circular(12),
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Container(
-                                  width: 70,
+                                  width: 50,
                                   height: 50,
                                   padding: const EdgeInsets.all(5),
                                   decoration: BoxDecoration(
-                                    color: theme.colorScheme.primary,
-                                    borderRadius: BorderRadius.circular(8),
+                                    image: DecorationImage(
+                                      image: AssetImage('assets/icon/icon.png'),
+                                      fit: BoxFit.contain,
+                                      opacity: 0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(25),
+                                    border: Border.all(
+                                      color: theme.colorScheme.onPrimary,
+                                      width: 2,
+                                    ),
                                   ),
                                   child: Icon(
-                                    Icons.folder_outlined,
-                                    size: 40,
-                                    color: theme.colorScheme.surface,
+                                    Icons.folder_copy_rounded,
+                                    size: 25,
+                                    color: theme.colorScheme.onPrimary,
                                   ),
                                 ),
                                 const SizedBox(width: 16),
                                 Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
                                       folderName,
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
-                                        color: theme.colorScheme.primary,
+                                        color: theme.colorScheme.onPrimary,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -549,54 +659,56 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                   );
 
                   return Padding(
-                    padding: const EdgeInsets.only(
-                      left: 12,
-                      right: 12,
-                      top: 12,
-                    ),
-                    child: Card(
-                      elevation: 0,
-                      color: isSelected
-                          ? theme.colorScheme.primary.withValues(alpha: 0.05)
-                          : theme.cardTheme.color,
-                      shape: RoundedRectangleBorder(
+                    padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: video.thumbnailUrl!.startsWith('http')
+                              ? NetworkImage(video.thumbnailUrl!)
+                              : FileImage(File(video.thumbnailUrl!)),
+                          fit: BoxFit.cover,
+                          opacity: 0.5,
+                        ),
+                        color: isSelected
+                            ? theme.colorScheme.primary.withValues(alpha: 0.05)
+                            : theme.cardTheme.color,
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
+                        border: Border.all(
                           color: isSelected
                               ? theme.colorScheme.primary
-                              : theme.dividerColor.withValues(alpha: 0.1),
+                              : theme.colorScheme.primary.withValues(
+                                  alpha: 0.2,
+                                ),
                           width: 1,
                         ),
                       ),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                        horizontalTitleGap: 20,
+                        // contentPadding: const EdgeInsets.symmetric(vertical: 0),
                         leading: SizedBox(
                           width: 100,
-                          height: 60,
+                          height: 100,
                           child: Row(
                             children: [
-                              Transform.scale(
-                                scale: 0.9,
-                                child: Checkbox(
-                                  value: isSelected,
-                                  activeColor: theme.colorScheme.primary,
-                                  onChanged: (bool? value) {
-                                    setState(() {
-                                      if (value == true) {
-                                        _selectedVideos.add(video);
-                                      } else {
-                                        _selectedVideos.removeWhere(
-                                          (v) => v.title == video.title,
-                                        );
-                                      }
-                                    });
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 4),
+                              // Transform.scale(
+                              //   scale: 0.9,
+                              //   child: Checkbox(
+                              //     value: isSelected,
+                              //     activeColor: theme.colorScheme.primary,
+                              //     onChanged: (bool? value) {
+                              //       setState(() {
+                              //         if (value == true) {
+                              //           _selectedVideos.add(video);
+                              //         } else {
+                              //           _selectedVideos.removeWhere(
+                              //             (v) => v.title == video.title,
+                              //           );
+                              //         }
+                              //       });
+                              //     },
+                              //   ),
+                              // ),
+                              // const SizedBox(width: 4),
                               Expanded(
                                 child: Container(
                                   decoration: BoxDecoration(
@@ -633,8 +745,34 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                                           size: 30,
                                         ),
                                       Positioned(
-                                        bottom: 4,
-                                        right: 10,
+                                        bottom: 5,
+                                        top: 5,
+                                        left: 5,
+                                        right: 5,
+                                        child: IconButton(
+                                          icon: Icon(
+                                            Icons.play_circle_fill,
+                                            size: 25,
+                                            color: theme.colorScheme.onPrimary
+                                                .withValues(alpha: 0.8),
+                                          ),
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    VideoPlayerScreen(
+                                                      videoUrl: video.url,
+                                                      title: video.title,
+                                                    ),
+                                              ),
+                                            ).then((_) => _loadCurrentDir());
+                                          },
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 2,
+                                        right: 2,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 4,
@@ -665,14 +803,30 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                             ],
                           ),
                         ),
-                        title: Text(
-                          video.title,
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurface,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        title: Row(
+                          children: [
+                            Text(
+                              video.title,
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              icon: Icon(
+                                Icons.drive_file_rename_outline,
+                                size: 20,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.8,
+                                ),
+                              ),
+                              onPressed: () => _renameItem(video),
+                              tooltip: 'Rename',
+                            ),
+                          ],
                         ),
                         subtitle: Text(
                           isMp4 ? 'Format: MP4' : 'Format: HLS (m3u8)',
@@ -682,25 +836,6 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                               alpha: 0.5,
                             ),
                           ),
-                        ),
-                        trailing: IconButton(
-                          icon: Icon(
-                            Icons.play_circle_fill,
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.3,
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => VideoPlayerScreen(
-                                  videoUrl: video.url,
-                                  title: video.title,
-                                ),
-                              ),
-                            ).then((_) => _loadCurrentDir());
-                          },
                         ),
                         onTap: () {
                           setState(() {

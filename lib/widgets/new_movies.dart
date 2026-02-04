@@ -7,8 +7,9 @@ import '../models/movie.dart';
 import '../services/api_service.dart';
 
 class NewMovies extends StatefulWidget {
-  // final Function(int) onTabRequested;
-  const NewMovies({super.key});
+  final Function(int)? onTabRequested;
+
+  const NewMovies({super.key, this.onTabRequested});
 
   @override
   State<NewMovies> createState() => _NewMoviesState();
@@ -79,7 +80,7 @@ class _NewMoviesState extends State<NewMovies> {
               final movie = _movies[index];
               return _MovieListItem(
                 movie: movie,
-                // onTabRequested: widget.onTabRequested,
+                onTabRequested: widget.onTabRequested,
               );
             },
           ),
@@ -91,8 +92,9 @@ class _NewMoviesState extends State<NewMovies> {
 
 class _MovieListItem extends StatefulWidget {
   final Movie movie;
+  final Function(int)? onTabRequested;
 
-  const _MovieListItem({required this.movie});
+  const _MovieListItem({required this.movie, this.onTabRequested});
 
   @override
   State<_MovieListItem> createState() => _MovieListItemState();
@@ -147,8 +149,11 @@ class _MovieListItemState extends State<_MovieListItem> {
                       ),
                     );
                     // If a tab index was returned, switch to that tab
-                    if (result != null && result is int && context.mounted) {
-                      // widget.onTabRequested(result);
+                    if (result != null &&
+                        result is int &&
+                        context.mounted &&
+                        widget.onTabRequested != null) {
+                      widget.onTabRequested!(result);
                     }
                   },
                   child: CachedNetworkImage(
@@ -171,12 +176,15 @@ class _MovieListItemState extends State<_MovieListItem> {
                   ),
                 ),
                 Positioned(
-                  top: 12,
-                  left: 0,
-                  child: Badge(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    backgroundColor: Colors.yellow.withValues(alpha: 0.5),
-                    label: Row(
+                  top: 5,
+                  left: 5,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.yellow.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Flexible(
@@ -191,7 +199,7 @@ class _MovieListItemState extends State<_MovieListItem> {
                             maxLines: 1,
                           ),
                         ),
-                        SizedBox(width: 2),
+                        SizedBox(width: 4),
                         Icon(
                           widget.movie.type == "series"
                               ? Icons.tv_rounded
@@ -201,16 +209,18 @@ class _MovieListItemState extends State<_MovieListItem> {
                         ),
                       ],
                     ),
-                    child: Container(width: 15),
                   ),
                 ),
                 Positioned(
                   top: 5,
-                  right: 0,
-                  child: Badge(
+                  right: 5,
+                  child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4),
-                    backgroundColor: Colors.transparent,
-                    label: Text(
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
                       widget.movie.year.toString(),
                       style: GoogleFonts.poppins(
                         fontSize: 10,
