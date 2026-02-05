@@ -14,7 +14,7 @@ class DownloadedVideosScreen extends StatefulWidget {
 
 class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
   List<dynamic> _displayItems = []; // Can be VideoItem or Directory
-  final Set<VideoItem> _selectedVideos = {};
+  final Set<dynamic> _selectedItems = {};
   bool _isLoading = true;
   Directory? _currentDir;
   Directory? _rootDir;
@@ -59,7 +59,7 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
     }
 
     setState(() {
-      _selectedVideos.clear();
+      _selectedItems.clear();
       _isLoading = true;
     });
     final List<dynamic> items = [];
@@ -259,11 +259,11 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
   }
 
   Future<void> _deleteSelected() async {
-    final count = _selectedVideos.length;
+    final count = _selectedItems.length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete $count Video${count > 1 ? 's' : ''}?'),
+        title: Text('Delete $count item${count > 1 ? 's' : ''}?'),
         content: const Text('This action cannot be undone.'),
         actions: [
           TextButton(
@@ -277,7 +277,7 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
             onPressed: () => Navigator.pop(context, true),
             child: Text(
               'Delete',
-              style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+              style: TextStyle(color: Theme.of(context).colorScheme.primary),
             ),
           ),
         ],
@@ -288,15 +288,21 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
 
     int deletedCount = 0;
     try {
-      for (final video in _selectedVideos) {
-        await _deleteVideo(video);
+      for (final item in _selectedItems) {
+        if (item is VideoItem) {
+          await _deleteVideo(item);
+        } else if (item is Directory) {
+          if (await item.exists()) {
+            await item.delete(recursive: true);
+          }
+        }
         deletedCount++;
       }
 
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Deleted $deletedCount videos')));
+        ).showSnackBar(SnackBar(content: Text('Deleted $deletedCount items')));
       }
     } catch (e) {
       if (mounted) {
@@ -322,7 +328,7 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.colorScheme.onPrimary.withValues(alpha: 0.1),
+        backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
         foregroundColor: theme.colorScheme.onSurface,
         toolbarHeight: 45,
         leading: Padding(
@@ -390,11 +396,11 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
           ],
         ),
         actions: [
-          if (_selectedVideos.isNotEmpty)
+          if (_selectedItems.isNotEmpty)
             IconButton(
               icon: Icon(
                 Icons.delete_outline,
-                color: theme.colorScheme.onPrimary,
+                color: theme.colorScheme.primary,
               ),
               onPressed: _deleteSelected,
               tooltip: 'Delete Selected',
@@ -449,19 +455,24 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
 
                   // 1. Select All Button at index 0
                   if (index == 0) {
-                    final videosInFolder = _displayItems
-                        .whereType<VideoItem>()
-                        .toList();
-                    if (videosInFolder.isEmpty) {
+                    if (_displayItems.isEmpty) {
                       return const SizedBox.shrink();
                     }
 
                     final isAllSelected =
-                        videosInFolder.isNotEmpty &&
-                        videosInFolder.every(
-                          (v) =>
-                              _selectedVideos.any((sv) => sv.title == v.title),
-                        );
+                        _displayItems.isNotEmpty &&
+                        _displayItems.every((item) {
+                          if (item is VideoItem) {
+                            return _selectedItems.any(
+                              (si) => si is VideoItem && si.title == item.title,
+                            );
+                          } else if (item is Directory) {
+                            return _selectedItems.any(
+                              (si) => si is Directory && si.path == item.path,
+                            );
+                          }
+                          return false;
+                        });
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(
@@ -472,27 +483,44 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           IconButton(
-                            icon: Icon(
-                              isAllSelected
-                                  ? Icons.check_box
-                                  : Icons.check_box_outline_blank,
-                              size: 22,
-                              color: isAllSelected
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface.withValues(
-                                      alpha: 0.5,
-                                    ),
+                            icon: Badge(
+                              textColor: theme.colorScheme.onSurface,
+                              backgroundColor: Colors.transparent,
+                              label: Text(
+                                _selectedItems.length.toString(),
+                                style: TextStyle(fontSize: 15),
+                              ),
+                              offset: const Offset(12, 12),
+                              child: Icon(
+                                isAllSelected || _selectedItems.isNotEmpty
+                                    ? Icons.check_circle_outline_rounded
+                                    : Icons.circle_outlined,
+                                size: 28,
+                                color: theme.colorScheme.primary,
+                              ),
                             ),
                             onPressed: () {
                               setState(() {
                                 if (isAllSelected) {
-                                  _selectedVideos.clear();
+                                  _selectedItems.clear();
                                 } else {
-                                  for (var v in videosInFolder) {
-                                    if (!_selectedVideos.any(
-                                      (sv) => sv.title == v.title,
-                                    )) {
-                                      _selectedVideos.add(v);
+                                  for (var item in _displayItems) {
+                                    bool alreadySelected = false;
+                                    if (item is VideoItem) {
+                                      alreadySelected = _selectedItems.any(
+                                        (si) =>
+                                            si is VideoItem &&
+                                            si.title == item.title,
+                                      );
+                                    } else if (item is Directory) {
+                                      alreadySelected = _selectedItems.any(
+                                        (si) =>
+                                            si is Directory &&
+                                            si.path == item.path,
+                                      );
+                                    }
+                                    if (!alreadySelected) {
+                                      _selectedItems.add(item);
                                     }
                                   }
                                 }
@@ -561,6 +589,9 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
 
                   if (item is Directory) {
                     final folderName = p.basename(item.path);
+                    final isSelected = _selectedItems.any(
+                      (si) => si is Directory && si.path == item.path,
+                    );
 
                     return Padding(
                       padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
@@ -568,11 +599,11 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              theme.colorScheme.onPrimary.withValues(
-                                alpha: 0.2,
+                              theme.colorScheme.primary.withValues(
+                                alpha: isSelected ? 0.4 : 0.2,
                               ),
-                              theme.colorScheme.onPrimary.withValues(
-                                alpha: 0.1,
+                              theme.colorScheme.primary.withValues(
+                                alpha: isSelected ? 0.3 : 0.1,
                               ),
                             ],
                             begin: Alignment.topLeft,
@@ -580,14 +611,40 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                           ),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.1,
-                            ),
+                            color: isSelected
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.1,
+                                  ),
+                            width: 2,
                           ),
                         ),
                         child: InkWell(
-                          onTap: () => _navigateToDir(item),
-                          onLongPress: () => _renameItem(item),
+                          onTap: () {
+                            if (_selectedItems.isNotEmpty) {
+                              setState(() {
+                                if (isSelected) {
+                                  _selectedItems.removeWhere(
+                                    (si) =>
+                                        si is Directory && si.path == item.path,
+                                  );
+                                } else {
+                                  _selectedItems.add(item);
+                                }
+                              });
+                            } else {
+                              _navigateToDir(item);
+                            }
+                          },
+                          onLongPress: () {
+                            if (_selectedItems.isEmpty) {
+                              setState(() {
+                                _selectedItems.add(item);
+                              });
+                            } else {
+                              _renameItem(item);
+                            }
+                          },
                           borderRadius: BorderRadius.circular(12),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
@@ -609,14 +666,16 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                                     ),
                                     borderRadius: BorderRadius.circular(25),
                                     border: Border.all(
-                                      color: theme.colorScheme.onPrimary,
+                                      color: theme.colorScheme.primary,
                                       width: 2,
                                     ),
                                   ),
                                   child: Icon(
-                                    Icons.folder_copy_rounded,
+                                    isSelected
+                                        ? Icons.check_circle
+                                        : Icons.folder_copy_rounded,
                                     size: 25,
-                                    color: theme.colorScheme.onPrimary,
+                                    color: theme.colorScheme.primary,
                                   ),
                                 ),
                                 const SizedBox(width: 16),
@@ -628,18 +687,24 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
-                                        color: theme.colorScheme.onPrimary,
+                                        color: theme.colorScheme.primary,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      'Tap to open',
+                                      _selectedItems.isNotEmpty
+                                          ? (isSelected
+                                                ? 'Selected'
+                                                : 'Tap to select')
+                                          : 'Tap to open',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.5),
+                                            .withValues(
+                                              alpha: isSelected ? 0.8 : 0.5,
+                                            ),
                                       ),
                                     ),
                                   ],
@@ -651,11 +716,11 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                       ),
                     );
                   }
-
+                  // list video of folder
                   final video = item as VideoItem;
                   final bool isMp4 = !video.url.toLowerCase().contains('.m3u8');
-                  final isSelected = _selectedVideos.any(
-                    (v) => v.title == video.title,
+                  final isSelected = _selectedItems.any(
+                    (si) => si is VideoItem && si.title == video.title,
                   );
 
                   return Padding(
@@ -684,31 +749,11 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                       ),
                       child: ListTile(
                         horizontalTitleGap: 20,
-                        // contentPadding: const EdgeInsets.symmetric(vertical: 0),
                         leading: SizedBox(
                           width: 100,
                           height: 100,
                           child: Row(
                             children: [
-                              // Transform.scale(
-                              //   scale: 0.9,
-                              //   child: Checkbox(
-                              //     value: isSelected,
-                              //     activeColor: theme.colorScheme.primary,
-                              //     onChanged: (bool? value) {
-                              //       setState(() {
-                              //         if (value == true) {
-                              //           _selectedVideos.add(video);
-                              //         } else {
-                              //           _selectedVideos.removeWhere(
-                              //             (v) => v.title == video.title,
-                              //           );
-                              //         }
-                              //       });
-                              //     },
-                              //   ),
-                              // ),
-                              // const SizedBox(width: 4),
                               Expanded(
                                 child: Container(
                                   decoration: BoxDecoration(
@@ -753,7 +798,7 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                                           icon: Icon(
                                             Icons.play_circle_fill,
                                             size: 25,
-                                            color: theme.colorScheme.onPrimary
+                                            color: theme.colorScheme.primary
                                                 .withValues(alpha: 0.8),
                                           ),
                                           onPressed: () {
@@ -840,11 +885,12 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
                         onTap: () {
                           setState(() {
                             if (isSelected) {
-                              _selectedVideos.removeWhere(
-                                (v) => v.title == video.title,
+                              _selectedItems.removeWhere(
+                                (si) =>
+                                    si is VideoItem && si.title == video.title,
                               );
                             } else {
-                              _selectedVideos.add(video);
+                              _selectedItems.add(video);
                             }
                           });
                         },

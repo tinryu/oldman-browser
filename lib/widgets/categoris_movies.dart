@@ -6,6 +6,7 @@ import '../models/movie.dart';
 import '../services/api_service.dart';
 import 'package:old_man_browser/screens/source_detail_screen.dart'
     show SourceDetailScreen;
+import 'animated_movie_title.dart' show AnimatedMovieTitle;
 
 class CategoriMovies extends StatefulWidget {
   final Function(int)? onTabRequested;
@@ -65,29 +66,11 @@ class _CategoriMoviesState extends State<CategoriMovies> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-          child: GestureDetector(
-            onTap: _showCategoriesModal,
-            child: Row(
-              children: [
-                Text(
-                  _selectedCategory?.name ?? 'Select Category',
-                  style: GoogleFonts.poppins(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.touch_app_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 20,
-                ),
-              ],
-            ),
-          ),
+        AnimatedMovieTitle(
+          title: _selectedCategory?.name ?? 'Select Category',
+          duration: Duration(seconds: 5),
+          onTabRequested: _showCategoriesModal,
+          icon: Icons.touch_app_rounded,
         ),
         _movies.isNotEmpty
             ? Expanded(
@@ -316,18 +299,21 @@ class _MovieListItemState extends State<_MovieListItem> {
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        widget.movie.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                          fontStyle: FontStyle.italic,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.white,
+                      SizedBox(
+                        width: 200,
+                        child: Text(
+                          widget.movie.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontStyle: FontStyle.italic,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],

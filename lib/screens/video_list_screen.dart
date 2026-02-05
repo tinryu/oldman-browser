@@ -264,7 +264,7 @@ class VideoListScreenState extends State<VideoListScreen>
                         icon: _hasValidClipboard
                             ? Icon(
                                 Icons.content_paste_go,
-                                color: theme.colorScheme.onPrimary,
+                                color: theme.colorScheme.primary,
                               )
                             : Icon(
                                 Icons.content_paste_off,
@@ -296,7 +296,7 @@ class VideoListScreenState extends State<VideoListScreen>
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
+                      foregroundColor: theme.colorScheme.primary,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -395,7 +395,8 @@ class VideoListScreenState extends State<VideoListScreen>
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.colorScheme.onPrimary.withValues(alpha: 0.1),
+        toolbarHeight: 45,
+        backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
         foregroundColor: theme.colorScheme.onSurface,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
@@ -433,8 +434,8 @@ class VideoListScreenState extends State<VideoListScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      theme.colorScheme.onPrimary.withValues(alpha: 0.2),
-                      theme.colorScheme.onPrimary.withValues(alpha: 0.8),
+                      theme.colorScheme.primary.withValues(alpha: 0.2),
+                      theme.colorScheme.primary.withValues(alpha: 0.8),
                     ],
                   ),
                   borderRadius: const BorderRadius.all(Radius.circular(10)),
@@ -538,7 +539,7 @@ class VideoListScreenState extends State<VideoListScreen>
                       : Icons.add,
                 ),
                 iconSize: 20,
-                color: theme.colorScheme.onPrimary,
+                color: theme.colorScheme.primary,
                 onPressed: () => _showAddVideoDialog(),
                 tooltip: 'Add Video',
               ),
@@ -581,7 +582,7 @@ class VideoListScreenState extends State<VideoListScreen>
                       Transform.scale(
                         scale: 0.9,
                         child: Checkbox(
-                          checkColor: theme.colorScheme.onPrimary,
+                          checkColor: theme.colorScheme.primary,
                           activeColor: theme.colorScheme.primary,
                           value: isSelected,
                           onChanged: (val) {
@@ -964,16 +965,18 @@ class VideoListScreenState extends State<VideoListScreen>
                         ),
                       ),
                       const SizedBox(height: 20),
-                      AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            color: Colors.black,
-                            child: Video(controller: _videoController),
-                          ),
-                        ),
-                      ),
+                      Platform.isWindows || Platform.isLinux || Platform.isMacOS
+                          ? AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  color: Colors.black,
+                                  child: Video(controller: _videoController),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                       const SizedBox(height: 20),
                       Text(
                         'Select Quality:',

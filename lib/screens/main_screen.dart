@@ -89,7 +89,7 @@ class _MainScreenState extends State<MainScreen> {
                 icon: Icon(
                   Icons.arrow_back_ios_new_rounded,
                   size: 15,
-                  color: theme.colorScheme.onPrimary,
+                  color: theme.colorScheme.primary,
                 ),
                 onPressed: () => setState(() => _selectedIndex = 0),
               ),
@@ -106,23 +106,23 @@ class _MainScreenState extends State<MainScreen> {
                       'assets/icon/icon.png',
                       width: 15,
                       colorBlendMode: BlendMode.color,
-                      color: theme.colorScheme.onPrimary,
+                      color: theme.colorScheme.primary,
                     )
                   : _selectedIndex == 1
                   ? Icon(
                       Icons.connected_tv_rounded,
-                      color: theme.colorScheme.onPrimary,
+                      color: theme.colorScheme.primary,
                       size: 15,
                     )
                   : _selectedIndex == 2
                   ? Icon(
                       Icons.cloud_download_rounded,
-                      color: theme.colorScheme.onPrimary,
+                      color: theme.colorScheme.primary,
                       size: 15,
                     )
                   : Icon(
                       Icons.folder_copy_rounded,
-                      color: theme.colorScheme.onPrimary,
+                      color: theme.colorScheme.primary,
                       size: 15,
                     ),
               SizedBox(height: 2),
@@ -132,7 +132,7 @@ class _MainScreenState extends State<MainScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     )
                   : Text(
@@ -144,7 +144,7 @@ class _MainScreenState extends State<MainScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
             ],
@@ -155,7 +155,7 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(
               Icons.info_outline_rounded,
               size: 15,
-              color: theme.colorScheme.onPrimary,
+              color: theme.colorScheme.primary,
             ),
             onPressed: () {
               showDialog(
@@ -213,7 +213,7 @@ class _MainScreenState extends State<MainScreen> {
           showUnselectedLabels: false,
           type: BottomNavigationBarType.fixed,
           backgroundColor: theme.colorScheme.surface,
-          selectedItemColor: theme.colorScheme.onPrimary,
+          selectedItemColor: theme.colorScheme.primary,
           unselectedItemColor: theme.colorScheme.onSurface.withValues(
             alpha: 0.5,
           ),
@@ -233,6 +233,12 @@ class _MainScreenState extends State<MainScreen> {
                 width: 18,
                 colorBlendMode: BlendMode.color,
                 color: theme.colorScheme.surface,
+              ),
+              activeIcon: Image.asset(
+                'assets/icon/icon.png',
+                width: 18,
+                colorBlendMode: BlendMode.color,
+                color: theme.colorScheme.primary,
               ),
               label: 'Home',
               tooltip: 'Home',

@@ -25,8 +25,8 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'OldManBrowser',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.getLightTheme(themeProvider.seedColor),
+      darkTheme: AppTheme.getDarkTheme(themeProvider.seedColor),
       themeMode: themeProvider.themeMode,
       home: const MainScreen(),
       debugShowCheckedModeBanner: false,

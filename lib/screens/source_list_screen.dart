@@ -117,7 +117,7 @@ class _SourceListScreenState extends State<SourceListScreen> {
                   child: Column(
                     children: [
                       Expanded(
-                        flex: 1,
+                        flex: 2,
                         child: NewMovies(onTabRequested: widget.onTabRequested),
                       ),
                       Expanded(

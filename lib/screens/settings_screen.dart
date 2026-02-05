@@ -23,46 +23,45 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _buildSectionHeader('Account'),
-          _buildSettingsItem(
-            context,
-            Icons.account_circle_outlined,
-            'Account info',
-            'Update your profile and security',
-            () => _showSimpleDialog(
-              context,
-              'Account Info',
-              'Manage your account security and profile settings.',
-            ),
-          ),
+          // _buildSectionHeader('Account', context),
+          // _buildSettingsItem(
+          //   context,
+          //   Icons.account_circle_outlined,
+          //   'Account info',
+          //   'Update your profile and security',
+          //   () => _showSimpleDialog(
+          //     context,
+          //     'Account Info',
+          //     'Manage your account security and profile settings.',
+          //   ),
+          // ),
 
+          // const SizedBox(height: 24),
+          // _buildSectionHeader('Privacy & Payments', context),
+          // _buildSettingsItem(
+          //   context,
+          //   Icons.person_outline_rounded,
+          //   'Personal info',
+          //   'Manage your personal details and privacy preferences.',
+          //   () => _showSimpleDialog(
+          //     context,
+          //     'Personal Info',
+          //     'Manage your personal details and privacy preferences.',
+          //   ),
+          // ),
+          // _buildSettingsItem(
+          //   context,
+          //   Icons.payment_rounded,
+          //   'Payment',
+          //   'Methods and subscription',
+          //   () => _showSimpleDialog(
+          //     context,
+          //     'Payment',
+          //     'Manage your payment methods and active subscriptions.',
+          //   ),
+          // ),
           const SizedBox(height: 24),
-          _buildSectionHeader('Privacy & Payments'),
-          _buildSettingsItem(
-            context,
-            Icons.person_outline_rounded,
-            'Personal info',
-            'Manage your personal details and privacy preferences.',
-            () => _showSimpleDialog(
-              context,
-              'Personal Info',
-              'Manage your personal details and privacy preferences.',
-            ),
-          ),
-          _buildSettingsItem(
-            context,
-            Icons.payment_rounded,
-            'Payment',
-            'Methods and subscription',
-            () => _showSimpleDialog(
-              context,
-              'Payment',
-              'Manage your payment methods and active subscriptions.',
-            ),
-          ),
-
-          const SizedBox(height: 24),
-          _buildSectionHeader('User Interface'),
+          _buildSectionHeader('User Interface', context),
           _buildSettingsItem(
             context,
             Icons.palette_outlined,
@@ -70,42 +69,42 @@ class SettingsScreen extends StatelessWidget {
             'Dark mode, themes, and styles',
             () => _showAppearanceDialog(context),
           ),
-          _buildSettingsItem(
-            context,
-            Icons.add_box_outlined,
-            'New tab',
-            'Customize your new tab page experience.',
-            () => _showSimpleDialog(
-              context,
-              'New Tab',
-              'Customize your new tab page experience.',
-            ),
-          ),
-          _buildSettingsItem(
-            context,
-            Icons.tab_unselected_rounded,
-            'Tabs',
-            'Grid layout and group settings',
-            () => _showSimpleDialog(
-              context,
-              'Tabs',
-              'Configure tab grid layout and group behavior.',
-            ),
-          ),
-          _buildSettingsItem(
-            context,
-            Icons.accessibility_new_rounded,
-            'Accessibility',
-            'Text size and visual assistance features.',
-            () => _showSimpleDialog(
-              context,
-              'Accessibility',
-              'Adjust text size and visual assistance features.',
-            ),
-          ),
 
+          // _buildSettingsItem(
+          //   context,
+          //   Icons.add_box_outlined,
+          //   'New tab',
+          //   'Customize your new tab page experience.',
+          //   () => _showSimpleDialog(
+          //     context,
+          //     'New Tab',
+          //     'Customize your new tab page experience.',
+          //   ),
+          // ),
+          // _buildSettingsItem(
+          //   context,
+          //   Icons.tab_unselected_rounded,
+          //   'Tabs',
+          //   'Grid layout and group settings',
+          //   () => _showSimpleDialog(
+          //     context,
+          //     'Tabs',
+          //     'Configure tab grid layout and group behavior.',
+          //   ),
+          // ),
+          // _buildSettingsItem(
+          //   context,
+          //   Icons.accessibility_new_rounded,
+          //   'Accessibility',
+          //   'Text size and visual assistance features.',
+          //   () => _showSimpleDialog(
+          //     context,
+          //     'Accessibility',
+          //     'Adjust text size and visual assistance features.',
+          //   ),
+          // ),
           const SizedBox(height: 24),
-          _buildSectionHeader('General'),
+          _buildSectionHeader('General', context),
           _buildSettingsItem(
             context,
             Icons.language_rounded,
@@ -113,31 +112,31 @@ class SettingsScreen extends StatelessWidget {
             'Choose your preferred language',
             () => _showLanguageDialog(context),
           ),
-          _buildSettingsItem(
-            context,
-            Icons.settings_input_component_rounded,
-            'Site setting',
-            'Permissions and content controls',
-            () => _showSimpleDialog(
-              context,
-              'Site Setting',
-              'Manage site-specific permissions and content controls.',
-            ),
-          ),
 
+          // _buildSettingsItem(
+          //   context,
+          //   Icons.settings_input_component_rounded,
+          //   'Site setting',
+          //   'Permissions and content controls',
+          //   () => _showSimpleDialog(
+          //     context,
+          //     'Site Setting',
+          //     'Manage site-specific permissions and content controls.',
+          //   ),
+          // ),
           const SizedBox(height: 24),
-          _buildSectionHeader('Support & About'),
-          _buildSettingsItem(
-            context,
-            Icons.auto_awesome_outlined,
-            "What's new",
-            'Discover the latest features and updates.',
-            () => _showSimpleDialog(
-              context,
-              "What's New",
-              'Discover the latest features and updates.',
-            ),
-          ),
+          _buildSectionHeader('About', context),
+          // _buildSettingsItem(
+          //   context,
+          //   Icons.auto_awesome_outlined,
+          //   "What's new",
+          //   'Discover the latest features and updates.',
+          //   () => _showSimpleDialog(
+          //     context,
+          //     "What's New",
+          //     'Discover the latest features and updates.',
+          //   ),
+          // ),
           _buildSettingsItem(
             context,
             Icons.info_outline_rounded,
@@ -152,13 +151,14 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 12, bottom: 8),
       child: Text(
         title.toUpperCase(),
         style: TextStyle(
-          color: Colors.blue.shade400,
+          color: theme.colorScheme.primary.withValues(alpha: 0.4),
           fontSize: 12,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
@@ -194,10 +194,14 @@ class SettingsScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: Colors.blue.shade300, size: 22),
+                  child: Icon(
+                    icon,
+                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -241,46 +245,113 @@ class SettingsScreen extends StatelessWidget {
 
     showDialog(
       context: context,
-      builder: (context) => Consumer<ThemeProvider>(
-        builder: (context, provider, child) => AlertDialog(
-          backgroundColor: theme.cardTheme.color,
-          title: Text(
-            'Appearance',
-            style: TextStyle(color: theme.textTheme.titleLarge?.color),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildThemeOption(
-                context,
-                'System Default',
-                Icons.brightness_auto,
-                provider.themeMode == ThemeMode.system,
-                () => provider.setThemeMode(ThemeMode.system),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Consumer<ThemeProvider>(
+          builder: (context, provider, child) => AlertDialog(
+            backgroundColor: theme.cardTheme.color,
+            title: Text(
+              'Appearance',
+              style: TextStyle(color: theme.textTheme.titleLarge?.color),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionLabel('Theme Mode'),
+                  _buildThemeOption(
+                    context,
+                    'System Default',
+                    Icons.brightness_auto,
+                    provider.themeMode == ThemeMode.system,
+                    () => provider.setThemeMode(ThemeMode.system),
+                  ),
+                  _buildThemeOption(
+                    context,
+                    'Light Mode',
+                    Icons.light_mode_outlined,
+                    provider.themeMode == ThemeMode.light,
+                    () => provider.setThemeMode(ThemeMode.light),
+                  ),
+                  _buildThemeOption(
+                    context,
+                    'Dark Mode',
+                    Icons.dark_mode_outlined,
+                    provider.themeMode == ThemeMode.dark,
+                    () => provider.setThemeMode(ThemeMode.dark),
+                  ),
+                  const Divider(height: 32),
+                  _buildSectionLabel('Seed Color'),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children:
+                        [
+                          Colors.amber,
+                          Colors.blue,
+                          Colors.red,
+                          Colors.green,
+                          Colors.purple,
+                          Colors.orange,
+                          Colors.pink,
+                          Colors.tealAccent,
+                        ].map((color) {
+                          final isSelected =
+                              provider.seedColor.value == color.value;
+                          return GestureDetector(
+                            onTap: () => provider.setSeedColor(color),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: isSelected
+                                    ? Border.all(color: Colors.white, width: 3)
+                                    : null,
+                                boxShadow: [
+                                  if (isSelected)
+                                    BoxShadow(
+                                      color: color.withValues(alpha: 0.5),
+                                      blurRadius: 8,
+                                      spreadRadius: 2,
+                                    ),
+                                ],
+                              ),
+                              child: isSelected
+                                  ? const Icon(Icons.check, color: Colors.white)
+                                  : null,
+                            ),
+                          );
+                        }).toList(),
+                  ),
+                ],
               ),
-              _buildThemeOption(
-                context,
-                'Light Mode',
-                Icons.light_mode_outlined,
-                provider.themeMode == ThemeMode.light,
-                () => provider.setThemeMode(ThemeMode.light),
-              ),
-              _buildThemeOption(
-                context,
-                'Dark Mode',
-                Icons.dark_mode_outlined,
-                provider.themeMode == ThemeMode.dark,
-                () => provider.setThemeMode(ThemeMode.dark),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Close',
+                  style: TextStyle(color: theme.colorScheme.primary),
+                ),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close', style: TextStyle(color: Colors.blue)),
-            ),
-          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey,
+        letterSpacing: 1.1,
       ),
     );
   }
@@ -307,7 +378,10 @@ class SettingsScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close', style: TextStyle(color: Colors.blue)),
+            child: Text(
+              'Close',
+              style: TextStyle(color: theme.colorScheme.primary),
+            ),
           ),
         ],
       ),
@@ -315,14 +389,15 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showAboutDialog(BuildContext context) {
+    final theme = Theme.of(context);
     showAboutDialog(
       context: context,
       applicationName: 'PlayerM3U8',
       applicationVersion: '1.0.0',
-      applicationIcon: const Icon(
+      applicationIcon: Icon(
         Icons.webhook_outlined,
         size: 48,
-        color: Colors.blue,
+        color: theme.colorScheme.primary,
       ),
       children: [
         const Text('A powerful M3U8 browser and video capturing tool.'),
@@ -330,29 +405,32 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showSimpleDialog(BuildContext context, String title, String message) {
-    final theme = Theme.of(context);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.cardTheme.color,
-        title: Text(
-          title,
-          style: TextStyle(color: theme.textTheme.titleLarge?.color),
-        ),
-        content: Text(
-          message,
-          style: TextStyle(color: theme.textTheme.bodyLarge?.color),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK', style: TextStyle(color: Colors.blue)),
-          ),
-        ],
-      ),
-    );
-  }
+  // void _showSimpleDialog(BuildContext context, String title, String message) {
+  //   final theme = Theme.of(context);
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => AlertDialog(
+  //       backgroundColor: theme.cardTheme.color,
+  //       title: Text(
+  //         title,
+  //         style: TextStyle(color: theme.textTheme.titleLarge?.color),
+  //       ),
+  //       content: Text(
+  //         message,
+  //         style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(context),
+  //           child: Text(
+  //             'OK',
+  //             style: TextStyle(color: theme.colorScheme.primary),
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildDialogOption(
     BuildContext context,
@@ -364,11 +442,13 @@ class SettingsScreen extends StatelessWidget {
       title: Text(
         title,
         style: TextStyle(
-          color: isSelected ? Colors.blue : theme.textTheme.bodyLarge?.color,
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.textTheme.bodyLarge?.color,
         ),
       ),
       trailing: isSelected
-          ? const Icon(Icons.check_circle, color: Colors.blue, size: 20)
+          ? Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 20)
           : null,
       onTap: () => Navigator.pop(context),
     );
@@ -383,15 +463,18 @@ class SettingsScreen extends StatelessWidget {
   ) {
     final theme = Theme.of(context);
     return ListTile(
-      leading: Icon(icon, color: isSelected ? Colors.blue : Colors.grey),
+      leading: Icon(
+        icon,
+        color: isSelected ? theme.colorScheme.primary : Colors.grey.shade400,
+      ),
       title: Text(
         title,
         style: TextStyle(
-          color: isSelected ? Colors.blue : theme.textTheme.bodyLarge?.color,
+          color: isSelected ? theme.colorScheme.primary : Colors.grey.shade400,
         ),
       ),
       trailing: isSelected
-          ? const Icon(Icons.check_circle, color: Colors.blue, size: 20)
+          ? Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 20)
           : null,
       onTap: onTap,
     );

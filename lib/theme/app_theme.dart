@@ -1,26 +1,14 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Brand Colors
-  static const Color primary = Colors.amber;
-  static const Color accent = Colors.amberAccent;
-  static const Color backgroundDark = Color.fromARGB(255, 7, 7, 7);
-  static const Color surfaceDark = Color.fromARGB(255, 20, 20, 20);
-  static const Color backgroundLight = Color.fromARGB(255, 241, 241, 241);
-  static const Color surfaceLight = Color(0xFFFFFFFF);
-
-  static ThemeData get lightTheme {
+  static ThemeData getLightTheme(Color seedColor) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
-        onPrimary: primary,
-        seedColor: accent,
+        seedColor: seedColor,
         brightness: Brightness.light,
-        surface: surfaceLight,
-        onSurface: const Color(0xFF0F172A),
       ),
-      scaffoldBackgroundColor: backgroundLight,
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -33,36 +21,28 @@ class AppTheme {
         iconTheme: IconThemeData(color: Color(0xFF0F172A)),
       ),
       cardTheme: CardThemeData(
-        color: surfaceLight,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
         ),
       ),
-      textTheme: const TextTheme(
-        titleLarge: TextStyle(
-          color: Color(0xFF0F172A),
-          fontWeight: FontWeight.bold,
-        ),
-        bodyLarge: TextStyle(color: Color(0xFF334155)),
-        bodyMedium: TextStyle(color: Color(0xFF64748B)),
-      ),
     );
   }
 
-  static ThemeData get darkTheme {
+  static ThemeData getDarkTheme(Color seedColor) {
+    const backgroundColor = Color.fromARGB(255, 15, 15, 15);
+    const surfaceColor = Color.fromARGB(255, 25, 25, 25);
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      scaffoldBackgroundColor: backgroundColor,
       colorScheme: ColorScheme.fromSeed(
-        onPrimary: primary,
-        seedColor: primary,
+        seedColor: seedColor,
         brightness: Brightness.dark,
-        surface: surfaceDark,
-        onSurface: Colors.white,
+        surface: surfaceColor,
       ),
-      scaffoldBackgroundColor: backgroundDark,
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -75,7 +55,7 @@ class AppTheme {
         iconTheme: IconThemeData(color: Colors.white),
       ),
       cardTheme: CardThemeData(
-        color: surfaceDark,
+        color: surfaceColor,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
