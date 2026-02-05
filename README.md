@@ -69,10 +69,10 @@
 - `lib/models/`: Data structures (VideoItem, BrowserTab)
 - `lib/theme/`: Custom design tokens and ThemeData.
 ## Source demo
-- Android:[Apk](https://drive.google.com/file/d/1SKrCyJameJvxLERekrNIyRIyR_z6NmbC/view?usp=sharing)
+- Android: [Apk](https://drive.google.com/file/d/1SKrCyJameJvxLERekrNIyRIyR_z6NmbC/view?usp=sharing)
 - Windown:[Zip](https://drive.google.com/file/d/19k9qQuCX4FEnzyg6s7PLNbYidDN5RAtj/view?usp=sharing)
 ## 🛡 License
 Distributed under the MIT License. See `LICENSE` for more information.
 ## 📝 Author
-Author: Justin Truong
-Email: justintruong1311@gmail.com
+- Author: Justin Truong
+- Email: justintruong1311@gmail.com
