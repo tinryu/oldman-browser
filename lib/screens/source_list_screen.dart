@@ -141,11 +141,11 @@ class _SourceListScreenState extends State<SourceListScreen> {
       child: Column(
         children: [
           SearchBar(
-            constraints: BoxConstraints(maxHeight: 40),
+            constraints: const BoxConstraints(maxHeight: 40),
             shape: WidgetStatePropertyAll(
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
-            padding: WidgetStatePropertyAll(
+            padding: const WidgetStatePropertyAll(
               EdgeInsets.symmetric(vertical: 4, horizontal: 12),
             ),
             controller: _searchController,
@@ -170,8 +170,9 @@ class _SourceListScreenState extends State<SourceListScreen> {
             },
           ),
 
-          if (_recentSearches.isNotEmpty && _searchController.text.isEmpty)
-            _buildRecentSearches(),
+          _recentSearches.isNotEmpty && _searchController.text.isEmpty
+              ? _buildRecentSearches()
+              : const SizedBox(height: 20),
         ],
       ),
     );
@@ -200,9 +201,9 @@ class _SourceListScreenState extends State<SourceListScreen> {
             itemBuilder: (context, index) {
               final query = _recentSearches[index];
               return ListTile(
-                contentPadding: EdgeInsets.symmetric(horizontal: 4),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                 minTileHeight: 20,
-                title: Text(query, style: TextStyle(fontSize: 14)),
+                title: Text(query, style: const TextStyle(fontSize: 14)),
                 trailing: IconButton(
                   icon: const Icon(Icons.clear, size: 14),
                   onPressed: () => _removeSearchQuery(query),

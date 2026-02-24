@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart' show GoogleFonts;
 
 class AnimatedMovieTitle extends StatefulWidget {
   final String title;
   final Duration duration;
   final Function()? onTabRequested;
+  final Function()? onIconTap;
   final IconData? icon;
   const AnimatedMovieTitle({
     super.key,
     required this.title,
     required this.duration,
     this.onTabRequested,
+    this.onIconTap,
     this.icon,
   });
 
@@ -73,17 +74,29 @@ class AnimatedMovieTitleState extends State<AnimatedMovieTitle>
                 borderRadius: const BorderRadius.all(Radius.circular(4)),
               ),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     widget.title,
-                    style: GoogleFonts.poppins(
+                    style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(widget.icon, color: Colors.white),
+                  if (widget.icon != null)
+                    GestureDetector(
+                      onTap: () {
+                        if (widget.onIconTap != null) {
+                          widget.onIconTap!();
+                        }
+                      },
+                      child: Tooltip(
+                        message: 'View All',
+                        child: Icon(widget.icon, color: Colors.white),
+                      ),
+                    ),
                 ],
               ),
             ),

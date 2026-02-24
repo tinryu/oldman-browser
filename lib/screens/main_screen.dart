@@ -75,7 +75,7 @@ class _MainScreenState extends State<MainScreen> {
           });
         },
       ),
-      DownloadedVideosScreen(),
+      const DownloadedVideosScreen(),
     ];
 
     final theme = Theme.of(context);
@@ -84,7 +84,7 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         leading: _selectedIndex == 0
-            ? SizedBox.shrink()
+            ? const SizedBox.shrink()
             : IconButton(
                 icon: Icon(
                   Icons.arrow_back_ios_new_rounded,
@@ -125,7 +125,7 @@ class _MainScreenState extends State<MainScreen> {
                       color: theme.colorScheme.primary,
                       size: 15,
                     ),
-              SizedBox(height: 2),
+              const SizedBox(height: 2),
               _selectedIndex == 0
                   ? Text(
                       'OM Browser',
@@ -162,7 +162,7 @@ class _MainScreenState extends State<MainScreen> {
                 context: context,
                 builder: (context) => AlertDialog(
                   insetPadding: const EdgeInsets.all(10),
-                  icon: Row(
+                  icon: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.info_outline_rounded, size: 20),
@@ -181,7 +181,7 @@ class _MainScreenState extends State<MainScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [Text(contentAlert[_selectedIndex])],
                   ),
-                  contentTextStyle: TextStyle(fontSize: 12),
+                  contentTextStyle: const TextStyle(fontSize: 12),
                 ),
               );
             },
@@ -205,7 +205,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       body: IndexedStack(index: _selectedIndex, children: screens),
       bottomNavigationBar: SizedBox(
-        height: 30,
+        height: 50,
         child: BottomNavigationBar(
           mouseCursor: SystemMouseCursors.click,
           iconSize: 20,
@@ -243,18 +243,18 @@ class _MainScreenState extends State<MainScreen> {
               label: 'Home',
               tooltip: 'Home',
             ),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
               icon: Icon(Icons.connected_tv_rounded),
               label: 'Sources',
               tooltip: 'Sources',
             ),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
               icon: Icon(Icons.cloud_download_rounded),
               label: 'Online',
               tooltip: 'Online',
             ),
 
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
               icon: Icon(Icons.folder_copy_rounded),
               label: 'Offline',
               tooltip: 'Offline',

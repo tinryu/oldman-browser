@@ -1,11 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:old_man_browser/screens/source_detail_screen.dart'
-    show SourceDetailScreen;
 import '../models/movie.dart';
 import '../services/api_service.dart';
 import 'animated_movie_title.dart' show AnimatedMovieTitle;
+import '../screens/movie_list_screen.dart';
+import 'movie_list_item.dart';
 
 class NewMovies extends StatefulWidget {
   final Function(int)? onTabRequested;
@@ -64,8 +62,20 @@ class _NewMoviesState extends State<NewMovies> {
       children: [
         AnimatedMovieTitle(
           title: 'Latest Movies',
-          duration: Duration(seconds: 5),
+          duration: const Duration(seconds: 5),
           onTabRequested: () {},
+          onIconTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MovieListScreen(
+                  title: 'Latest Movies',
+                  onTabRequested: widget.onTabRequested,
+                ),
+              ),
+            );
+          },
+          icon: Icons.arrow_forward_ios_rounded,
         ),
         Expanded(
           child: ListView.builder(
@@ -73,7 +83,7 @@ class _NewMoviesState extends State<NewMovies> {
             itemCount: _movies.length,
             itemBuilder: (context, index) {
               final movie = _movies[index];
-              return _MovieListItem(
+              return MovieListItem(
                 movie: movie,
                 onTabRequested: widget.onTabRequested,
               );
@@ -81,179 +91,6 @@ class _NewMoviesState extends State<NewMovies> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _MovieListItem extends StatefulWidget {
-  final Movie movie;
-  final Function(int)? onTabRequested;
-
-  const _MovieListItem({required this.movie, this.onTabRequested});
-
-  @override
-  State<_MovieListItem> createState() => _MovieListItemState();
-}
-
-class _MovieListItemState extends State<_MovieListItem> {
-  bool _isHovered = false;
-  bool _isTouching = false;
-
-  @override
-  Widget build(BuildContext context) {
-    // Base height 70, expanded height 110
-    final isExpanded = _isHovered || _isTouching;
-    final height = isExpanded ? 120.0 : 60.0;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: Listener(
-        onPointerDown: (_) => setState(() => _isTouching = true),
-        onPointerUp: (_) => setState(() => _isTouching = false),
-        onPointerCancel: (_) => setState(() => _isTouching = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          width: double.infinity,
-          height: height,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8.0),
-              color: Colors.grey[900],
-              boxShadow: [
-                BoxShadow(
-                  color: isExpanded ? Colors.white : Colors.redAccent,
-                  blurRadius: 2.0,
-                  offset: const Offset(0, 0),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                InkWell(
-                  onTap: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            SourceDetailScreen(movieId: widget.movie.id),
-                      ),
-                    );
-                    // If a tab index was returned, switch to that tab
-                    if (result != null &&
-                        result is int &&
-                        context.mounted &&
-                        widget.onTabRequested != null) {
-                      widget.onTabRequested!(result);
-                    }
-                  },
-                  child: CachedNetworkImage(
-                    imageUrl: widget.movie.posterUrl,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.centerLeft,
-                    color: Colors.black.withValues(alpha: 0.5),
-                    colorBlendMode: BlendMode.darken,
-                    progressIndicatorBuilder: (context, url, progress) =>
-                        Center(
-                          child: CircularProgressIndicator(
-                            value: progress.progress,
-                            strokeWidth: 2,
-                            color: Colors.white30,
-                          ),
-                        ),
-                    errorWidget: (context, url, error) => const Center(
-                      child: Icon(Icons.broken_image, color: Colors.white30),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 5,
-                  left: 5,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.yellow.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            widget.movie.lang.toString(),
-                            style: GoogleFonts.poppins(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        ),
-                        SizedBox(width: 4),
-                        Icon(
-                          widget.movie.type == "series"
-                              ? Icons.tv_rounded
-                              : Icons.movie_outlined,
-                          color: Colors.black,
-                          size: 15,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 5,
-                  right: 5,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      widget.movie.year.toString(),
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      SizedBox(
-                        width: 200,
-                        child: Text(
-                          widget.movie.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontStyle: FontStyle.italic,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:old_man_browser/models/country.dart';
@@ -13,15 +14,27 @@ class MovieResponse {
   final int currentPage;
   final int totalPages;
   final int totalItems;
+  final int totalItemsPerPage;
 
   MovieResponse({
     required this.items,
     required this.currentPage,
     required this.totalPages,
     required this.totalItems,
+    required this.totalItemsPerPage,
   });
 
-  bool get hasReachedMax => currentPage >= totalPages;
+  bool get hasReachedMax {
+    // Calculation based on total items
+    final isLastPageByTotal = (currentPage * totalItemsPerPage) >= totalItems;
+
+    final reached = isLastPageByTotal;
+
+    debugPrint(
+      'Pagination Check: Current Page $currentPage. Reached Max: $reached',
+    );
+    return reached;
+  }
 }
 
 class ApiService {
@@ -116,16 +129,41 @@ class ApiService {
     final decoded = jsonDecode(res.body);
     final items = _extractMovieList(decoded);
 
-    // For real API, adjust this based on your API response structure
+    // Unified logic to extract pagination info for OPhim API
+    final pagination =
+        (decoded is Map &&
+            decoded['data'] is Map &&
+            decoded['data']['params'] is Map &&
+            decoded['data']['params']['pagination'] is Map)
+        ? decoded['data']['params']['pagination'] as Map
+        : (decoded is Map && decoded['pagination'] is Map)
+        ? decoded['pagination'] as Map
+        : null;
+
+    final totalP = pagination != null
+        ? (pagination['totalPages'] ?? pagination['total_pages'] ?? 1)
+        : 1;
+    final totalI = pagination != null
+        ? (pagination['totalItems'] ??
+              pagination['total_items'] ??
+              items.length)
+        : items.length;
+    final totalIPP = pagination != null
+        ? (pagination['totalItemsPerPage'] ??
+              pagination['total_items_per_page'] ??
+              items.length)
+        : items.length;
+
     return MovieResponse(
       items: items.map(_movieFromAnyJson).toList(growable: false),
       currentPage: page,
-      totalPages: (decoded is Map && decoded['pagination'] is Map)
-          ? (decoded['pagination'] as Map)['totalPages'] ?? 1
-          : 1,
-      totalItems: (decoded is Map && decoded['pagination'] is Map)
-          ? (decoded['pagination'] as Map)['totalItems'] ?? items.length
-          : items.length,
+      totalPages: totalP is int ? totalP : int.tryParse(totalP.toString()) ?? 1,
+      totalItems: totalI is int
+          ? totalI
+          : int.tryParse(totalI.toString()) ?? items.length,
+      totalItemsPerPage: totalIPP is int
+          ? totalIPP
+          : int.tryParse(totalIPP.toString()) ?? items.length,
     );
   }
 
@@ -141,16 +179,41 @@ class ApiService {
     final decoded = jsonDecode(res.body);
     final items = _extractMovieList(decoded);
 
-    // For real API, you might need to adjust this based on your API response structure
+    // Unified logic to extract pagination info for OPhim API
+    final pagination =
+        (decoded is Map &&
+            decoded['data'] is Map &&
+            decoded['data']['params'] is Map &&
+            decoded['data']['params']['pagination'] is Map)
+        ? decoded['data']['params']['pagination'] as Map
+        : (decoded is Map && decoded['pagination'] is Map)
+        ? decoded['pagination'] as Map
+        : null;
+
+    final totalP = pagination != null
+        ? (pagination['totalPages'] ?? pagination['total_pages'] ?? 1)
+        : 1;
+    final totalI = pagination != null
+        ? (pagination['totalItems'] ??
+              pagination['total_items'] ??
+              items.length)
+        : items.length;
+    final totalIPP = pagination != null
+        ? (pagination['totalItemsPerPage'] ??
+              pagination['total_items_per_page'] ??
+              items.length)
+        : items.length;
+
     return MovieResponse(
       items: items.map(_movieFromAnyJson).toList(growable: false),
       currentPage: page,
-      totalPages: (decoded is Map && decoded['pagination'] is Map)
-          ? (decoded['pagination'] as Map)['totalPages'] ?? 1
-          : 1,
-      totalItems: (decoded is Map && decoded['pagination'] is Map)
-          ? (decoded['pagination'] as Map)['totalItems'] ?? items.length
-          : items.length,
+      totalPages: totalP is int ? totalP : int.tryParse(totalP.toString()) ?? 1,
+      totalItems: totalI is int
+          ? totalI
+          : int.tryParse(totalI.toString()) ?? items.length,
+      totalItemsPerPage: totalIPP is int
+          ? totalIPP
+          : int.tryParse(totalIPP.toString()) ?? items.length,
     );
   }
 
@@ -259,6 +322,7 @@ Movie _movieFromOphimHomeItem(Map<String, dynamic> json) {
         .toList(),
     genres: genres,
     episodes: const [],
+    source: 'OPhim',
   );
 }
 
@@ -313,6 +377,7 @@ Movie _movieFromOphimDetail(Map<String, dynamic> decoded) {
         .toList(),
     genres: genres,
     episodes: episodes,
+    source: 'OPhim',
   );
 }
 

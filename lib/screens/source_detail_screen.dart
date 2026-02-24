@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models/episode.dart';
 import '../../models/movie.dart';
 import '../../services/api_service.dart';
@@ -58,12 +57,15 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
                 bottom: PreferredSize(
                   preferredSize: const Size.fromHeight(30),
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                     child: Text(
                       movie.description,
                       maxLines: 7,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.normal,
                         color: Colors.white,
@@ -78,7 +80,7 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
                   movie.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
+                  style: const TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
                   ),
@@ -179,10 +181,10 @@ class _SourceDetailScreenState extends State<SourceDetailScreen> {
     Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         closeIconColor: Colors.black,
         showCloseIcon: true,
-        content: const Text('Copied all episodes to clipboard'),
+        content: Text('Copied all episodes to clipboard'),
       ),
     );
   }

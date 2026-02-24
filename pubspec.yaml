@@ -11,29 +11,39 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Core utilities
   cupertino_icons: ^1.0.8
   path: ^1.9.0
+  
+  # Video playback (consolidated to media_kit only)
   media_kit: ^1.1.10+1
   media_kit_video: ^1.2.4
   media_kit_libs_video: ^1.0.4
-  better_player: ^0.0.84
-  dio: ^5.4.0          # For downloading
-  path_provider: ^2.1.2 # For app storage
-  flutter_hls_parser: ^2.0.1  # To parse m3u8 playlists
-  permission_handler: ^11.3.1 # For storage permissions on Android
+  
+  # Networking & downloading
+  dio: ^5.4.0
+  http: ^1.2.2
+  
+  # Storage & file management
+  path_provider: ^2.1.2
+  flutter_hls_parser: ^2.0.1
+  permission_handler: ^11.3.1
   device_info_plus: ^10.1.0
-  gal: ^2.3.2
+  
+  # WebView
   webview_flutter: ^4.13.1
   webview_windows: ^0.4.0
+  
+  # State management & preferences
   provider: ^6.1.5+1
   shared_preferences: ^2.5.4
-  # Networking + images
-  http: ^1.2.2
+  
+  # UI & images
   cached_network_image: ^3.4.1
-  # Google Fonts
-  google_fonts: ^6.2.1
-  # ffmpeg_kit_flutter_new (fork that fixes Android build issues)
+  
+  # Video processing
   ffmpeg_kit_flutter_new: ^4.1.0
+  gal: ^2.3.2
 
 
 dev_dependencies:

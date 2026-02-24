@@ -53,7 +53,7 @@ class _CapturedVideosModalState extends State<CapturedVideosModal> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                const Text(
                   'Captured Video Streams',
                   style: TextStyle(
                     fontSize: 17,
@@ -65,7 +65,7 @@ class _CapturedVideosModalState extends State<CapturedVideosModal> {
                 ),
                 Text(
                   '(${widget.videos.length})',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,

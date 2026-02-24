@@ -16,6 +16,7 @@ class Movie {
   final List<Categoris> categories;
   final List<String> genres;
   final List<EpisodeServer> episodes;
+  final String? source;
 
   const Movie({
     required this.id,
@@ -30,6 +31,7 @@ class Movie {
     this.type,
     this.lang,
     this.episodes = const [],
+    this.source,
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
@@ -65,6 +67,7 @@ class Movie {
           .toList(),
       genres: genres,
       episodes: episodes,
+      source: json['source']?.toString(),
     );
   }
 
@@ -82,6 +85,7 @@ class Movie {
       'categories': categories.map((e) => e.toJson()).toList(),
       'genres': genres,
       'episodes': episodes.map((e) => e.toJson()).toList(),
+      'source': source,
     };
   }
 }
