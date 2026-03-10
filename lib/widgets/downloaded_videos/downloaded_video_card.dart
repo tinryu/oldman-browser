@@ -130,14 +130,16 @@ class DownloadedVideoCard extends StatelessWidget {
           ),
           title: Row(
             children: [
-              Text(
-                video.title,
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  video.title,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
               IconButton(
                 padding: EdgeInsets.zero,

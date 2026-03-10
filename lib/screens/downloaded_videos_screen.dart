@@ -17,7 +17,8 @@ class DownloadedVideosScreen extends StatefulWidget {
   State<DownloadedVideosScreen> createState() => _DownloadedVideosScreenState();
 }
 
-class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
+class _DownloadedVideosScreenState extends State<DownloadedVideosScreen>
+    with AutomaticKeepAliveClientMixin {
   List<dynamic> _displayItems = []; // Can be VideoItem or Directory
   final Set<dynamic> _selectedItems = {};
   bool _isLoading = true;
@@ -245,7 +246,11 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
     if (_isLoading) {
       return Scaffold(

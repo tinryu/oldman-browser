@@ -65,6 +65,7 @@ class BrowserModals {
                   history: history,
                   onUrlSelected: onUrlSelected,
                   onClearHistory: () {
+                    if (history.isEmpty) return;
                     history.clear();
                     StorageService.saveHistory(history);
                   },
@@ -74,13 +75,6 @@ class BrowserModals {
                   },
                 ),
                 onTabRequested: onTabRequested,
-              ),
-              const Divider(),
-              _buildGridMenu(
-                context: context,
-                isDesktopMode: isDesktopMode,
-                onGoHome: onGoHome,
-                onAddNewTab: onAddNewTab,
                 onClearAllData: onClearAllData,
                 onShowCapturedVideos: () => showCapturedVideosModal(
                   context: context,
@@ -90,8 +84,13 @@ class BrowserModals {
                   onVideoRemoved: onVideoRemoved,
                   onVideosUpdated: onVideosUpdated,
                   onTabRequested: onTabRequested,
-                  onClear: () => detectedVideos.clear(),
+                  onClear: () {
+                    if (detectedVideos.isNotEmpty) {
+                      detectedVideos.clear();
+                    }
+                  },
                 ),
+                detectedVideosCount: detectedVideos.length,
               ),
               const SizedBox(height: 12),
             ],
@@ -106,83 +105,26 @@ class BrowserModals {
     required VoidCallback onShowBookmarks,
     required VoidCallback onShowHistory,
     required Function(int) onTabRequested,
+    required VoidCallback onClearAllData,
+    required VoidCallback onShowCapturedVideos,
+    required int detectedVideosCount,
   }) {
     final items = [
       MenuBottomItem(Icons.star, "Favorites", Colors.white, () {
         Navigator.pop(context);
         onShowBookmarks();
       }),
-      MenuBottomItem(Icons.history, "History", Colors.white, () {
-        Navigator.pop(context);
-        onShowHistory();
-      }),
       MenuBottomItem(Icons.download, "Downloads", Colors.white, () {
         Navigator.pop(context);
         onTabRequested(3);
       }),
-      MenuBottomItem(Icons.settings, "Settings", Colors.white, () {
+      MenuBottomItem(Icons.extension, "Extensions", Colors.white, () {
         Navigator.pop(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const SettingsScreen()),
-        );
-      }),
-    ];
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: items
-            .map(
-              (item) => InkWell(
-                onTap: item.onActions,
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(item.icon, color: Colors.white, size: 26),
-                      const SizedBox(height: 6),
-                      Text(
-                        item.label,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
+        onShowCapturedVideos();
+      }, badgeCount: detectedVideosCount),
 
-  static Widget _buildGridMenu({
-    required BuildContext context,
-    required bool isDesktopMode,
-    required VoidCallback onGoHome,
-    required Function({bool isIncognito}) onAddNewTab,
-    required VoidCallback onClearAllData,
-    required VoidCallback onShowCapturedVideos,
-  }) {
-    final items = [
-      MenuBottomItem(Icons.home, "Home", Colors.white, () {
-        Navigator.pop(context);
-        onGoHome();
-      }),
-      MenuBottomItem(Icons.security, "InPrivate Tab", Colors.white, () {
-        Navigator.pop(context);
-        onAddNewTab(isIncognito: true);
-      }),
       MenuBottomItem(
-        Icons.cleaning_services,
+        Icons.remove_moderator_outlined,
         "Delete data",
         Colors.redAccent,
         () {
@@ -208,44 +150,71 @@ class BrowserModals {
           );
         },
       ),
-      MenuBottomItem(Icons.extension, "Extensions", Colors.white, () {
+      MenuBottomItem(Icons.history, "History", Colors.white, () {
         Navigator.pop(context);
-        onShowCapturedVideos();
+        onShowHistory();
+      }),
+      MenuBottomItem(Icons.settings, "Settings", Colors.white, () {
+        Navigator.pop(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SettingsScreen()),
+        );
       }),
     ];
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: items.length,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: MediaQuery.of(context).size.width > 500 ? 1.7 : 1.1,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: items
+                .take(3)
+                .map((item) => _buildMenuItem(item))
+                .toList(),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: items
+                .skip(3)
+                .map((item) => _buildMenuItem(item))
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _buildMenuItem(MenuBottomItem item) {
+    return Expanded(
+      child: InkWell(
+        onTap: item.onActions,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Badge(
+                label: item.badgeCount != null
+                    ? Text(item.badgeCount.toString())
+                    : null,
+                isLabelVisible: item.badgeCount != null && item.badgeCount! > 0,
+                child: Icon(item.icon, color: Colors.white, size: 26),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                item.label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
+          ),
         ),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return InkWell(
-            onTap: item.onActions,
-            borderRadius: BorderRadius.circular(12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(item.icon, color: item.color, size: 26),
-                const SizedBox(height: 8),
-                Text(
-                  item.label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: item.color, fontSize: 11),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }

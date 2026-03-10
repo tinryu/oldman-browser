@@ -6,7 +6,7 @@ class ThemeProvider with ChangeNotifier {
   static const String _seedColorKey = 'seed_color';
 
   ThemeMode _themeMode = ThemeMode.system;
-  Color _seedColor = Colors.amberAccent;
+  Color _seedColor = Colors.pinkAccent;
 
   ThemeMode get themeMode => _themeMode;
   Color get seedColor => _seedColor;

@@ -20,7 +20,8 @@ class SourceListScreen extends StatefulWidget {
   State<SourceListScreen> createState() => _SourceListScreenState();
 }
 
-class _SourceListScreenState extends State<SourceListScreen> {
+class _SourceListScreenState extends State<SourceListScreen>
+    with AutomaticKeepAliveClientMixin {
   final _api = ApiService();
   final _debouncer = Debouncer(milliseconds: 500);
   final _searchController = TextEditingController();
@@ -107,7 +108,11 @@ class _SourceListScreenState extends State<SourceListScreen> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       body: Column(
         children: [

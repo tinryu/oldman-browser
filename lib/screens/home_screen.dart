@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import '../widgets/browser/browser_modals.dart';
 import '../widgets/speed_dial.dart';
 
+import 'dart:io';
 import 'package:webview_windows/webview_windows.dart' as win;
+import 'package:webview_flutter/webview_flutter.dart' as mob;
 import '../models/video_item.dart';
 import '../models/browser_tab.dart';
 import '../services/storage_service.dart';
@@ -35,7 +37,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   static bool _isEnvInitialized = false;
 
   // Tab & Browser Logic
@@ -50,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<Map<String, String>> _history = [];
   String? _lastCandidateThumbnail;
   bool _showTabSwitcher = false;
+  bool _isAutoBotEnabled = false;
 
   // Animation controllers
   late AnimationController _pageTransitionController;
@@ -64,25 +68,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // Helper getters
   BrowserTab? get _currentTab => _tabController.currentTab;
   win.WebviewController? get _winController => _currentTab?.winController;
+  mob.WebViewController? get _mobController => _currentTab?.mobController;
   bool get _isInitialized => _currentTab?.isInitialized ?? false;
   String get _currentUrl => _currentTab?.url ?? 'https://www.google.com';
   double get _loadingProgress => _currentTab?.loadingProgress ?? 0;
   bool get _showHome => _currentTab?.showHome ?? true;
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
     _loadInitialData();
 
-    // Controllers
-    _tabController.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    // Only rebuild when the active tab's state visually changes
+    _tabController.addListener(_onTabControllerChanged);
 
     _pageTransitionController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 200),
       vsync: this,
     );
 
@@ -102,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         );
 
     _tabSwitcherController = AnimationController(
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 250),
       vsync: this,
     );
 
@@ -127,6 +131,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     _addNewTab();
     _pageTransitionController.forward();
+  }
+
+  int _lastNotifiedTabIndex = -1;
+  String _lastNotifiedUrl = '';
+  double _lastNotifiedProgress = 0;
+
+  void _onTabControllerChanged() {
+    if (!mounted) return;
+    final tab = _tabController.currentTab;
+    final tabIndex = _tabController.currentTabIndex;
+    final url = tab?.url ?? '';
+    final progress = tab?.loadingProgress ?? 0;
+
+    // Only rebuild if something visually relevant changed
+    if (tabIndex != _lastNotifiedTabIndex ||
+        url != _lastNotifiedUrl ||
+        progress != _lastNotifiedProgress) {
+      _lastNotifiedTabIndex = tabIndex;
+      _lastNotifiedUrl = url;
+      _lastNotifiedProgress = progress;
+      setState(() {});
+    }
   }
 
   Future<void> _loadInitialData() async {
@@ -223,6 +249,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
     _tabController.tabs[index].winController?.dispose();
+    // mobController doesn't need explicit disposal in this version of webview_flutter
     _tabController.closeTab(index);
     _textController.text = _currentTab?.url ?? '';
   }
@@ -259,7 +286,117 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _currentTab!.isInitialized = false;
       _errorMessage = null;
     });
-    _initWindowsWebview();
+
+    if (Platform.isWindows) {
+      _initWindowsWebview();
+    } else {
+      _initMobileWebview();
+    }
+  }
+
+  Future<void> _initMobileWebview() async {
+    if (_currentTab == null) return;
+
+    try {
+      final controller = mob.WebViewController();
+      await controller.setJavaScriptMode(mob.JavaScriptMode.unrestricted);
+      await controller.setBackgroundColor(const Color(0x00000000));
+      await controller.setNavigationDelegate(
+        mob.NavigationDelegate(
+          onProgress: (int progress) {
+            if (mounted) {
+              _tabController.updateTabLoadingProgress(
+                _tabController.tabs.indexOf(_currentTab!),
+                progress / 100,
+              );
+            }
+          },
+          onPageStarted: (String url) {
+            _lastCandidateThumbnail = null;
+            if (mounted) {
+              _tabController.updateTabUrl(
+                _tabController.tabs.indexOf(_currentTab!),
+                url,
+              );
+              _textController.text = url;
+            }
+          },
+          onPageFinished: (String url) async {
+            if (mounted) {
+              _tabController.updateTabLoadingProgress(
+                _tabController.tabs.indexOf(_currentTab!),
+                0,
+              );
+            }
+            final String? title = await _mobController?.getTitle();
+            if (title != null && title.isNotEmpty && mounted) {
+              _tabController.updateTabTitle(
+                _tabController.tabs.indexOf(_currentTab!),
+                title,
+              );
+              if (!(_currentTab?.isIncognito ?? false)) {
+                _addToHistory(url, title);
+              }
+            }
+          },
+          onWebResourceError: (mob.WebResourceError error) {
+            debugPrint('WebResourceError: ${error.description}');
+          },
+        ),
+      );
+
+      await controller.addJavaScriptChannel(
+        'm3u8_captured',
+        onMessageReceived: (mob.JavaScriptMessage message) {
+          try {
+            final data = jsonDecode(message.message);
+            if (data['type'] == 'm3u8_captured') {
+              final url = data['url'] as String;
+              if (!_detectedVideos.any((v) => v.url == url)) {
+                if (mounted) {
+                  setState(
+                    () => _detectedVideos.add(
+                      VideoItem(
+                        title: data['title'] ?? 'Captured Video',
+                        url: url,
+                        thumbnailUrl: _lastCandidateThumbnail,
+                      ),
+                    ),
+                  );
+                }
+              }
+            } else if (data['type'] == 'thumbnail_captured') {
+              _lastCandidateThumbnail = data['url'];
+            }
+          } catch (e) {
+            debugPrint('Error parsing mobile web message: $e');
+          }
+        },
+      );
+
+      // Add scripts
+      await controller.runJavaScript(WebviewService.getBrowserShieldScript());
+      await controller.runJavaScript(WebviewService.captureScript);
+
+      if (_tabController.isDesktopMode) {
+        await controller.setUserAgent(WebviewService.desktopUserAgent);
+      } else {
+        await controller.setUserAgent(WebviewService.mobileUserAgent);
+      }
+
+      await controller.loadRequest(Uri.parse(_currentTab!.url));
+
+      if (mounted) {
+        setState(() {
+          _currentTab!.mobController = controller;
+          _currentTab!.isInitialized = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = 'Mobile Initialization Error: $e');
+      }
+    }
   }
 
   Future<void> _initWindowsWebview() async {
@@ -281,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final controller = win.WebviewController();
       await controller.initialize();
       await controller.addScriptToExecuteOnDocumentCreated(
-        WebviewService.browserShieldScript,
+        WebviewService.getBrowserShieldScript(),
       );
 
       if (_tabController.isDesktopMode) {
@@ -413,20 +550,91 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       url = 'https://$url';
     }
 
-    _winController?.loadUrl(url);
+    if (Platform.isWindows) {
+      _winController?.loadUrl(url);
+    } else {
+      _mobController?.loadRequest(Uri.parse(url));
+    }
   }
 
-  void _goBack() => _winController?.goBack();
-  void _goForward() => _winController?.goForward();
-  void _reload() => _winController?.reload();
+  void _goBack() {
+    if (Platform.isWindows) {
+      _winController?.goBack();
+    } else {
+      _mobController?.goBack();
+    }
+  }
+
+  void _goForward() {
+    if (Platform.isWindows) {
+      _winController?.goForward();
+    } else {
+      _mobController?.goForward();
+    }
+  }
+
+  void _reload() {
+    if (Platform.isWindows) {
+      _winController?.reload();
+    } else {
+      _mobController?.reload();
+    }
+  }
+
   void _goHome() {
     if (_currentTab != null) {
       setState(() => _currentTab!.showHome = true);
     }
   }
 
+  void _toggleAutoBot() {
+    setState(() {
+      _isAutoBotEnabled = !_isAutoBotEnabled;
+    });
+    if (_isAutoBotEnabled) {
+      if (Platform.isWindows) {
+        _currentTab?.winController?.executeScript(
+          'window.startAutoBot && window.startAutoBot(3000);',
+        );
+      } else {
+        _currentTab?.mobController?.runJavaScript(
+          'window.startAutoBot && window.startAutoBot(3000);',
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Auto Bot Started! Scanning and auto-scrolling...'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      if (Platform.isWindows) {
+        _currentTab?.winController?.executeScript(
+          'window.stopAutoBot && window.stopAutoBot();',
+        );
+      } else {
+        _currentTab?.mobController?.runJavaScript(
+          'window.stopAutoBot && window.stopAutoBot();',
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Auto Bot Stopped.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _tabController.removeListener(_onTabControllerChanged);
     for (final tab in _tabController.tabs) {
       tab.winController?.dispose();
     }
@@ -441,6 +649,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     if (_errorMessage != null) return _buildErrorState();
 
     return Column(
@@ -495,7 +704,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ? const Center(
                                     child: CircularProgressIndicator(),
                                   )
-                                : win.Webview(_winController!),
+                                : Platform.isWindows
+                                ? win.Webview(_winController!)
+                                : mob.WebViewWidget(
+                                    controller: _mobController!,
+                                  ),
                           ),
                         ),
                       ),
@@ -533,6 +746,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               : const SizedBox.shrink(),
                         ),
                       ),
+                      if (!_showHome && _isInitialized)
+                        Positioned(
+                          bottom: 20,
+                          right: 20,
+                          child: FloatingActionButton(
+                            mini: true,
+                            backgroundColor: _isAutoBotEnabled
+                                ? Colors.red
+                                : Colors.blue,
+                            onPressed: _toggleAutoBot,
+                            tooltip: _isAutoBotEnabled
+                                ? 'Stop Auto Bot'
+                                : 'Start Auto Bot',
+                            child: Icon(
+                              _isAutoBotEnabled ? Icons.stop : Icons.play_arrow,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
           ),
@@ -597,11 +829,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       isDesktopMode: _tabController.isDesktopMode,
       onGoHome: _goHome,
       onAddNewTab: _addNewTab,
-      onClearAllData: () {
+      onClearAllData: () async {
+        if (_history.isEmpty && _bookmarks.isEmpty && _detectedVideos.isEmpty) {
+          return;
+        }
         _history.clear();
         _bookmarks.clear();
-        StorageService.clearAllStorage();
-        setState(() {});
+        _detectedVideos.clear();
+        await StorageService.clearAllStorage();
+        if (mounted) setState(() {});
       },
       bookmarks: _bookmarks,
       history: _history,

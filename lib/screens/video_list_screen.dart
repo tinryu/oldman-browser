@@ -34,7 +34,7 @@ class VideoListScreen extends StatefulWidget {
 }
 
 class VideoListScreenState extends State<VideoListScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
   final Set<VideoItem> _selectedVideos = {};
   bool _mediaKitInitialized = false;
   late final Player _player;
@@ -387,7 +387,11 @@ class VideoListScreenState extends State<VideoListScreen>
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,

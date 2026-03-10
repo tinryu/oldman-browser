@@ -27,7 +27,7 @@ class StorageService {
     } catch (e) {
       debugPrint('Error loading bookmarks: $e');
     }
-    return const [];
+    return [];
   }
 
   /// Saves the list of bookmarks to the local file system.
@@ -54,7 +54,7 @@ class StorageService {
     } catch (e) {
       debugPrint('Error loading history: $e');
     }
-    return const [];
+    return [];
   }
 
   /// Saves the browsing history to the local file system.

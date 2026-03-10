@@ -35,47 +35,46 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  // Cache callbacks to avoid creating new closures on every build
+  // ignore: prefer_function_declarations_over_variables
+  late final _onTabRequested = (int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    if (index == 2) {
+      _videoListKey.currentState?.updateClipboardStatus();
+    }
+  };
+
+  // ignore: prefer_function_declarations_over_variables
+  late final _onVideosUpdated = (List<VideoItem> newList) {
+    setState(() {
+      onlineVideos = newList;
+    });
+  };
+
   @override
   Widget build(BuildContext context) {
+    // Screens are now stable — only rebuilt when their specific props change
     final List<Widget> screens = [
-      HomeScreen(
-        onVideoCaptured: _addVideo,
-        onVideoRemoved: _removeVideo,
-        onVideosUpdated: (newList) {
-          setState(() {
-            onlineVideos = newList;
-          });
-        },
-        onlineVideos: onlineVideos,
-        onTabRequested: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-          if (index == 2) {
-            _videoListKey.currentState?.updateClipboardStatus();
-          }
-        },
+      RepaintBoundary(
+        child: HomeScreen(
+          onVideoCaptured: _addVideo,
+          onVideoRemoved: _removeVideo,
+          onVideosUpdated: _onVideosUpdated,
+          onlineVideos: onlineVideos,
+          onTabRequested: _onTabRequested,
+        ),
       ),
-      SourceListScreen(
-        onTabRequested: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-          if (index == 2) {
-            _videoListKey.currentState?.updateClipboardStatus();
-          }
-        },
+      RepaintBoundary(child: SourceListScreen(onTabRequested: _onTabRequested)),
+      RepaintBoundary(
+        child: VideoListScreen(
+          key: _videoListKey,
+          onlineVideos: onlineVideos,
+          onVideosUpdated: _onVideosUpdated,
+        ),
       ),
-      VideoListScreen(
-        key: _videoListKey,
-        onlineVideos: onlineVideos,
-        onVideosUpdated: (newList) {
-          setState(() {
-            onlineVideos = newList;
-          });
-        },
-      ),
-      const DownloadedVideosScreen(),
+      const RepaintBoundary(child: DownloadedVideosScreen()),
     ];
 
     final theme = Theme.of(context);

@@ -5,6 +5,13 @@ class MenuBottomItem {
   final String label;
   final Color color;
   final VoidCallback? onActions;
+  final int? badgeCount;
 
-  MenuBottomItem(this.icon, this.label, this.color, this.onActions);
+  MenuBottomItem(
+    this.icon,
+    this.label,
+    this.color,
+    this.onActions, {
+    this.badgeCount,
+  });
 }
