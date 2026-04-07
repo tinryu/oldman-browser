@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -35,6 +36,9 @@ class StreamAnalysisService {
 
     _isStarting = true;
     try {
+      if (kIsWeb) {
+        throw 'Stream analyzer service is not supported on the web platform as it requires a local executable.';
+      }
       const String binaryName = 'analyzer-win-v3.exe';
 
       // 1. Check for "sidecar" binary (next to the .exe in build/release)
