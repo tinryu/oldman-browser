@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../utils/platform_utils.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 class DownloadOptionsDialog extends StatefulWidget {
@@ -26,8 +26,7 @@ class _DownloadOptionsDialogState extends State<DownloadOptionsDialog> {
   @override
   void initState() {
     super.initState();
-    _tempSelected =
-        widget.preferredQuality ??
+    _tempSelected = widget.preferredQuality ??
         (widget.options.isNotEmpty ? widget.options.first : null);
   }
 
@@ -82,7 +81,9 @@ class _DownloadOptionsDialogState extends State<DownloadOptionsDialog> {
               ),
             ),
             const SizedBox(height: 20),
-            if (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
+            if (PlatformUtils.isWindows ||
+                PlatformUtils.isLinux ||
+                PlatformUtils.isMacOS)
               AspectRatio(
                 aspectRatio: 16 / 9,
                 child: ClipRRect(

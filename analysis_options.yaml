@@ -2,6 +2,7 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   errors:
+    avoid_print: ignore
     deprecated_member_use: ignore
     todo: ignore
   exclude:
@@ -21,5 +22,4 @@ linter:
     - prefer_final_locals
     - sort_child_properties_last
     - unawaited_futures
-    - unsafe_html
     - use_super_parameters

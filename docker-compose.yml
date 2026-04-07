@@ -1,0 +1,11 @@
+services:
+  web-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oldmanbrowser-web
+    ports:
+      - "8080:80"
+    restart: always
+
+# Command to run: docker-compose up -d --build

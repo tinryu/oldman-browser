@@ -5,15 +5,24 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.10.4
+  sdk: ^3.0.0
 
 dependencies:
   flutter:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+
 
   # Core utilities
   cupertino_icons: ^1.0.8
   path: ^1.9.0
+
+  #Youtu
+  flutter_riverpod: ^3.2.1
+  y_player: ^2.0.6
+  flutter_dotenv: ^6.0.0
+  youtube_explode_dart: ^2.2.2
   
   # Video playback (consolidated to media_kit only)
   media_kit: ^1.1.10+1
@@ -21,7 +30,7 @@ dependencies:
   media_kit_libs_video: ^1.0.4
   
   # Networking & downloading
-  dio: ^5.4.0
+  dio: ^5.9.1
   http: ^1.2.2
   
   # Storage & file management
@@ -68,8 +77,10 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/icon/icon.png
     - assets/icon/icon.ico
+    - assets/bin/analyzer-win-v3.exe
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

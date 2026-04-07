@@ -2,16 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:old_man_browser/widgets/speed_dial.dart';
 import '../widgets/browser/browser_modals.dart';
-import '../widgets/speed_dial.dart';
-
-import 'dart:io';
 import 'package:webview_windows/webview_windows.dart' as win;
 import 'package:webview_flutter/webview_flutter.dart' as mob;
 import '../models/video_item.dart';
 import '../models/browser_tab.dart';
 import '../services/storage_service.dart';
 import '../services/webview_service.dart';
+import '../utils/platform_utils.dart';
 import '../controllers/browser_tab_controller.dart';
 import '../widgets/browser/address_bar.dart';
 import '../widgets/browser/navigation_controls.dart';
@@ -99,11 +98,11 @@ class _HomeScreenState extends State<HomeScreen>
 
     _pageSlideAnimation =
         Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _pageTransitionController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
+      CurvedAnimation(
+        parent: _pageTransitionController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
     _tabSwitcherController = AnimationController(
       duration: const Duration(milliseconds: 250),
@@ -172,18 +171,16 @@ class _HomeScreenState extends State<HomeScreen>
     if (url == 'about:blank' || url.isEmpty) {
       return;
     }
-    setState(() {
-      _history.removeWhere((item) => item['url'] == url);
-      _history.insert(0, {
-        'url': url,
-        'title': title.isEmpty ? url : title,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-      if (_history.length > 100) {
-        _history = _history.sublist(0, 100);
-      }
+    _history.removeWhere((item) => item['url'] == url);
+    _history.insert(0, {
+      'url': url,
+      'title': title.isEmpty ? url : title,
+      'timestamp': DateTime.now().toIso8601String(),
     });
-    StorageService.saveHistory(_history);
+    if (_history.length > 100) {
+      _history = _history.sublist(0, 100);
+    }
+    unawaited(StorageService.saveHistory(_history));
   }
 
   Future<void> _addBookmark() async {
@@ -287,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen>
       _errorMessage = null;
     });
 
-    if (Platform.isWindows) {
+    if (PlatformUtils.isWindows) {
       _initWindowsWebview();
     } else {
       _initMobileWebview();
@@ -376,6 +373,7 @@ class _HomeScreenState extends State<HomeScreen>
 
       // Add scripts
       await controller.runJavaScript(WebviewService.getBrowserShieldScript());
+      await controller.runJavaScript(WebviewService.adblockScript);
       await controller.runJavaScript(WebviewService.captureScript);
 
       if (_tabController.isDesktopMode) {
@@ -427,6 +425,10 @@ class _HomeScreenState extends State<HomeScreen>
           Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
         ''');
       }
+
+      await controller.addScriptToExecuteOnDocumentCreated(
+        WebviewService.adblockScript,
+      );
 
       await controller.addScriptToExecuteOnDocumentCreated(
         WebviewService.captureScript,
@@ -541,8 +543,7 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() => _currentTab!.showHome = false);
 
     String url = input;
-    final bool isSearch =
-        input.contains(' ') ||
+    final bool isSearch = input.contains(' ') ||
         (!input.contains('.') && !input.startsWith('http'));
     if (isSearch) {
       url = 'https://www.google.com/search?q=${Uri.encodeComponent(input)}';
@@ -550,7 +551,7 @@ class _HomeScreenState extends State<HomeScreen>
       url = 'https://$url';
     }
 
-    if (Platform.isWindows) {
+    if (PlatformUtils.isWindows) {
       _winController?.loadUrl(url);
     } else {
       _mobController?.loadRequest(Uri.parse(url));
@@ -558,7 +559,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _goBack() {
-    if (Platform.isWindows) {
+    if (PlatformUtils.isWindows) {
       _winController?.goBack();
     } else {
       _mobController?.goBack();
@@ -566,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _goForward() {
-    if (Platform.isWindows) {
+    if (PlatformUtils.isWindows) {
       _winController?.goForward();
     } else {
       _mobController?.goForward();
@@ -574,7 +575,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _reload() {
-    if (Platform.isWindows) {
+    if (PlatformUtils.isWindows) {
       _winController?.reload();
     } else {
       _mobController?.reload();
@@ -582,9 +583,51 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _goHome() {
-    if (_currentTab != null) {
-      setState(() => _currentTab!.showHome = true);
+    if (_currentTab == null) return;
+
+    // 1. Stop AutoBot if running
+    if (_isAutoBotEnabled) {
+      _isAutoBotEnabled = false;
+      if (PlatformUtils.isWindows) {
+        _currentTab?.winController?.executeScript(
+          'window.stopAutoBot && window.stopAutoBot();',
+        );
+      } else {
+        _currentTab?.mobController?.runJavaScript(
+          'window.stopAutoBot && window.stopAutoBot();',
+        );
+      }
     }
+
+    // 2. Stop all playing media and then navigate to about:blank
+    const stopMediaScript = '''
+      document.querySelectorAll('video, audio').forEach(el => {
+        el.pause();
+        el.src = '';
+        el.load();
+      });
+    ''';
+    if (PlatformUtils.isWindows) {
+      _currentTab?.winController?.executeScript(stopMediaScript);
+      _currentTab?.winController?.loadUrl('about:blank');
+    } else {
+      _currentTab?.mobController?.runJavaScript(stopMediaScript);
+      _currentTab?.mobController?.loadRequest(Uri.parse('about:blank'));
+    }
+
+    // 3. Close tab switcher if open
+    if (_showTabSwitcher) {
+      _showTabSwitcher = false;
+      _tabSwitcherController.reverse();
+    }
+
+    // 4. Reset loading progress
+    final tabIndex = _tabController.tabs.indexOf(_currentTab!);
+    _tabController.updateTabLoadingProgress(tabIndex, 0);
+
+    // 5. Reset address bar and show home screen
+    _textController.text = 'https://www.google.com';
+    setState(() => _currentTab!.showHome = true);
   }
 
   void _toggleAutoBot() {
@@ -592,7 +635,7 @@ class _HomeScreenState extends State<HomeScreen>
       _isAutoBotEnabled = !_isAutoBotEnabled;
     });
     if (_isAutoBotEnabled) {
-      if (Platform.isWindows) {
+      if (PlatformUtils.isWindows) {
         _currentTab?.winController?.executeScript(
           'window.startAutoBot && window.startAutoBot(3000);',
         );
@@ -611,7 +654,7 @@ class _HomeScreenState extends State<HomeScreen>
         );
       }
     } else {
-      if (Platform.isWindows) {
+      if (PlatformUtils.isWindows) {
         _currentTab?.winController?.executeScript(
           'window.stopAutoBot && window.stopAutoBot();',
         );
@@ -704,11 +747,11 @@ class _HomeScreenState extends State<HomeScreen>
                                 ? const Center(
                                     child: CircularProgressIndicator(),
                                   )
-                                : Platform.isWindows
-                                ? win.Webview(_winController!)
-                                : mob.WebViewWidget(
-                                    controller: _mobController!,
-                                  ),
+                                : PlatformUtils.isWindows
+                                    ? win.Webview(_winController!)
+                                    : mob.WebViewWidget(
+                                        controller: _mobController!,
+                                      ),
                           ),
                         ),
                       ),
@@ -724,8 +767,7 @@ class _HomeScreenState extends State<HomeScreen>
                         opacity: _tabSwitcherFadeAnimation,
                         child: ScaleTransition(
                           scale: _tabSwitcherScaleAnimation,
-                          child:
-                              _showTabSwitcher ||
+                          child: _showTabSwitcher ||
                                   _tabSwitcherController.isAnimating
                               ? TabSwitcher(
                                   tabs: _tabController.tabs,
@@ -752,9 +794,8 @@ class _HomeScreenState extends State<HomeScreen>
                           right: 20,
                           child: FloatingActionButton(
                             mini: true,
-                            backgroundColor: _isAutoBotEnabled
-                                ? Colors.red
-                                : Colors.blue,
+                            backgroundColor:
+                                _isAutoBotEnabled ? Colors.red : Colors.blue,
                             onPressed: _toggleAutoBot,
                             tooltip: _isAutoBotEnabled
                                 ? 'Stop Auto Bot'

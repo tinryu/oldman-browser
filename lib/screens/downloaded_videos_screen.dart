@@ -263,8 +263,11 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen>
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: _buildAppBar(theme),
       // ignore: deprecated_member_use
-      body: WillPopScope(
-        onWillPop: _navigateBack,
+      body: PopScope(
+        canPop: _currentDir?.path == _rootDir?.path,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) _navigateBack();
+        },
         child: _displayItems.isEmpty
             ? _buildEmptyState(theme)
             : _buildItemList(theme),

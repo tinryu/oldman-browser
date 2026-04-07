@@ -20,7 +20,7 @@ class _MovieListItemState extends State<MovieListItem> {
   @override
   Widget build(BuildContext context) {
     final isExpanded = _isHovered || _isTouching;
-    final height = isExpanded ? 150.0 : 80.0;
+    final height = isExpanded ? 300.0 : 60.0;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -66,21 +66,32 @@ class _MovieListItemState extends State<MovieListItem> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              CachedNetworkImage(
-                imageUrl: widget.movie.posterUrl,
-                fit: BoxFit.cover,
-                alignment: Alignment.centerLeft,
-                color: Colors.black.withAlpha(isExpanded ? 100 : 150),
-                colorBlendMode: BlendMode.darken,
-                progressIndicatorBuilder: (context, url, progress) => Center(
-                  child: CircularProgressIndicator(
-                    value: progress.progress,
-                    strokeWidth: 2,
-                    color: Colors.white24,
+              SizedBox.expand(
+                child: CachedNetworkImage(
+                  imageUrl: widget.movie.posterUrl,
+                  imageBuilder: (context, imageProvider) => DecoratedBox(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: imageProvider,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.centerLeft,
+                        colorFilter: ColorFilter.mode(
+                          Colors.black.withAlpha(isExpanded ? 100 : 150),
+                          BlendMode.darken,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                errorWidget: (context, url, error) => const Center(
-                  child: Icon(Icons.broken_image, color: Colors.white24),
+                  progressIndicatorBuilder: (context, url, progress) => Center(
+                    child: CircularProgressIndicator(
+                      value: progress.progress,
+                      strokeWidth: 2,
+                      color: Colors.white24,
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => const Center(
+                    child: Icon(Icons.broken_image, color: Colors.white24),
+                  ),
                 ),
               ),
               // Content

@@ -5,13 +5,20 @@ import 'package:path_provider/path_provider.dart';
 
 /// A service class that handles persistent storage of bookmarks and history.
 class StorageService {
+  static Directory? _cachedDir;
+
+  static Future<Directory> get _appDir async {
+    _cachedDir ??= await getApplicationDocumentsDirectory();
+    return _cachedDir!;
+  }
+
   static Future<File> get _bookmarksFile async {
-    final directory = await getApplicationDocumentsDirectory();
+    final directory = await _appDir;
     return File('${directory.path}/bookmarks.json');
   }
 
   static Future<File> get _historyFile async {
-    final directory = await getApplicationDocumentsDirectory();
+    final directory = await _appDir;
     return File('${directory.path}/history.json');
   }
 

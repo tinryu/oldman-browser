@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../utils/platform_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hls_parser/flutter_hls_parser.dart';
 import 'package:dio/dio.dart';
@@ -107,7 +108,7 @@ class VideoListScreenState extends State<VideoListScreen>
     required Duration thumbnailSeekPosition,
   }) async {
     final isDesktop =
-        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+        PlatformUtils.isWindows || PlatformUtils.isLinux || PlatformUtils.isMacOS;
 
     if (isDesktop) {
       debugPrint('MediaKit: Capturing thumbnail from $videoPath');
@@ -640,7 +641,7 @@ class VideoListScreenState extends State<VideoListScreen>
     bool showSuccessSnackBar = true,
   }) async {
     // final theme = Theme.of(context);
-    if (Platform.isAndroid) {
+    if (PlatformUtils.isAndroid) {
       final deviceInfo = DeviceInfoPlugin();
       final androidInfo = await deviceInfo.androidInfo;
       if (androidInfo.version.sdkInt < 33) {

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class SpeedDial extends StatefulWidget {
@@ -110,16 +111,21 @@ class _SpeedDialState extends State<SpeedDial> {
                                           ? ClipRRect(
                                               borderRadius:
                                                   BorderRadius.circular(12),
-                                              child: Image.network(
-                                                faviconUrl,
+                                              child: CachedNetworkImage(
+                                                imageUrl: faviconUrl,
                                                 width: 32,
                                                 height: 32,
-                                                errorBuilder:
-                                                    (
-                                                      context,
-                                                      error,
-                                                      stackTrace,
-                                                    ) => Icon(
+                                                placeholder: (context, url) =>
+                                                    Icon(
+                                                      Icons.public,
+                                                      color: theme
+                                                          .colorScheme
+                                                          .onSurface,
+                                                      size: 32,
+                                                    ),
+                                                errorWidget:
+                                                    (context, url, error) =>
+                                                    Icon(
                                                       Icons.public,
                                                       color: theme
                                                           .colorScheme

@@ -1,6 +1,10 @@
 class AppConfig {
-  static const apiBaseUrl = String.fromEnvironment('API_BASE_URL',
-      defaultValue: 'https://ophim1.com');
+  static const String youtubeBaseUrl = 'https://www.googleapis.com/youtube/v3';
+
+  static const apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://ophim1.com',
+  );
 
   static const moviesPath = '/v1/api/home';
 

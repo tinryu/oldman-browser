@@ -29,6 +29,15 @@ class CapturedVideosModal extends StatefulWidget {
 }
 
 class _CapturedVideosModalState extends State<CapturedVideosModal> {
+  String _selectedFilter = '.m3u8';
+
+  List<VideoItem> get _filteredVideos {
+    if (_selectedFilter == 'All') return widget.videos;
+    return widget.videos
+        .where((v) => v.url.toLowerCase().contains(_selectedFilter.toLowerCase()))
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -64,7 +73,7 @@ class _CapturedVideosModalState extends State<CapturedVideosModal> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '(${widget.videos.length})',
+                  '(${_filteredVideos.length})',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -107,14 +116,53 @@ class _CapturedVideosModalState extends State<CapturedVideosModal> {
             ),
           ),
           const Divider(color: Colors.white10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                'All',
+                '.m3u8',
+                '.mp4',
+                '.mov',
+                '.m4v',
+              ].map((filter) {
+                final isSelected = _selectedFilter == filter;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(
+                      filter,
+                      style: TextStyle(
+                        color: isSelected ? Colors.black : Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedFilter = filter;
+                      });
+                    },
+                    selectedColor: Colors.white,
+                    backgroundColor: Colors.white10,
+                    checkmarkColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const Divider(color: Colors.white10),
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: widget.videos.length,
+              itemCount: _filteredVideos.length,
               separatorBuilder: (context, index) =>
                   const Divider(color: Colors.white10, height: 1),
               itemBuilder: (context, index) {
-                final video = widget.videos[index];
+                final video = _filteredVideos[index];
                 final isAdded = widget.onlineVideos.any(
                   (v) => v.url == video.url,
                 );

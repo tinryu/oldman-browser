@@ -38,3 +38,12 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# Copy the stream analyzer binary to the executable directory
+add_custom_command(
+    TARGET ${BINARY_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${PROJECT_SOURCE_DIR}/../../assets/bin/analyzer-win-v3.exe"
+    "$<TARGET_FILE_DIR:${BINARY_NAME}>/analyzer-win-v3.exe"
+    VERBATIM
+)

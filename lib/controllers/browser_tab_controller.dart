@@ -54,21 +54,21 @@ class BrowserTabController extends ChangeNotifier {
   }
 
   void updateTabUrl(int index, String url) {
-    if (index >= 0 && index < _tabs.length) {
+    if (index >= 0 && index < _tabs.length && _tabs[index].url != url) {
       _tabs[index].url = url;
       notifyListeners();
     }
   }
 
   void updateTabTitle(int index, String title) {
-    if (index >= 0 && index < _tabs.length) {
+    if (index >= 0 && index < _tabs.length && _tabs[index].title != title) {
       _tabs[index].title = title;
       notifyListeners();
     }
   }
 
   void updateTabLoadingProgress(int index, double progress) {
-    if (index >= 0 && index < _tabs.length) {
+    if (index >= 0 && index < _tabs.length && _tabs[index].loadingProgress != progress) {
       _tabs[index].loadingProgress = progress;
       notifyListeners();
     }

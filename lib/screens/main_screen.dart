@@ -3,6 +3,7 @@ import 'video_list_screen.dart';
 import 'downloaded_videos_screen.dart';
 import 'home_screen.dart';
 import 'source_list_screen.dart';
+import 'tool_list_screen.dart';
 import '../models/video_item.dart';
 
 class MainScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _MainScreenState extends State<MainScreen> {
     'Sources is a List of videos that can be downloaded.',
     'Online is a List of videos that can be downloaded.',
     'Offline is a List of downloaded videos.',
+    'Tools to analyze streaming technologies of websites.',
   ];
 
   void _addVideo(VideoItem video) {
@@ -41,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _selectedIndex = index;
     });
-    if (index == 2) {
+    if (index == 3) {
       _videoListKey.currentState?.updateClipboardStatus();
     }
   };
@@ -67,6 +69,7 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       RepaintBoundary(child: SourceListScreen(onTabRequested: _onTabRequested)),
+
       RepaintBoundary(
         child: VideoListScreen(
           key: _videoListKey,
@@ -75,6 +78,7 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       const RepaintBoundary(child: DownloadedVideosScreen()),
+      const RepaintBoundary(child: ToolListScreen()),
     ];
 
     final theme = Theme.of(context);
@@ -119,8 +123,14 @@ class _MainScreenState extends State<MainScreen> {
                       color: theme.colorScheme.primary,
                       size: 15,
                     )
-                  : Icon(
+                  : _selectedIndex == 3
+                  ? Icon(
                       Icons.folder_copy_rounded,
+                      color: theme.colorScheme.primary,
+                      size: 15,
+                    )
+                  : Icon(
+                      Icons.build_circle_outlined,
                       color: theme.colorScheme.primary,
                       size: 15,
                     ),
@@ -139,7 +149,9 @@ class _MainScreenState extends State<MainScreen> {
                           ? 'Sources'
                           : _selectedIndex == 2
                           ? 'Online'
-                          : 'Offline',
+                          : _selectedIndex == 3
+                          ? 'Offline'
+                          : 'Tools',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -221,7 +233,7 @@ class _MainScreenState extends State<MainScreen> {
           currentIndex: _selectedIndex,
           onTap: (index) {
             setState(() => _selectedIndex = index);
-            if (index == 2) {
+            if (index == 3) {
               _videoListKey.currentState?.updateClipboardStatus();
             }
           },
@@ -252,11 +264,15 @@ class _MainScreenState extends State<MainScreen> {
               label: 'Online',
               tooltip: 'Online',
             ),
-
             const BottomNavigationBarItem(
               icon: Icon(Icons.folder_copy_rounded),
               label: 'Offline',
               tooltip: 'Offline',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.build_circle_outlined),
+              label: 'Tools',
+              tooltip: 'Tools',
             ),
           ],
         ),

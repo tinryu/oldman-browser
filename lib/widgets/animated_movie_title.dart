@@ -51,24 +51,20 @@ class AnimatedMovieTitleState extends State<AnimatedMovieTitle>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.transparent,
                     Theme.of(
                       context,
-                    ).colorScheme.primary.withValues(alpha: 0.1),
+                    ).colorScheme.primary.withValues(alpha: 0.5),
                     Theme.of(context).colorScheme.primary,
                     Theme.of(
                       context,
-                    ).colorScheme.primary.withValues(alpha: 0.1),
-                    Colors.transparent,
+                    ).colorScheme.primary.withValues(alpha: 0.5),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   stops: [
-                    0.0,
                     (_controller.value - 0.25).clamp(0.0, 1.0),
                     _controller.value,
                     (_controller.value + 0.25).clamp(0.0, 1.0),
-                    1.0,
                   ],
                 ),
                 borderRadius: const BorderRadius.all(Radius.circular(4)),
