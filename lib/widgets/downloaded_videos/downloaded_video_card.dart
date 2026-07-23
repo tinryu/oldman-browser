@@ -8,6 +8,7 @@ class DownloadedVideoCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onPlay;
   final VoidCallback onRename;
+  final VoidCallback? onShowInfo;
   final ThemeData theme;
 
   const DownloadedVideoCard({
@@ -17,6 +18,7 @@ class DownloadedVideoCard extends StatelessWidget {
     required this.onTap,
     required this.onPlay,
     required this.onRename,
+    this.onShowInfo,
     required this.theme,
   });
 
@@ -141,6 +143,17 @@ class DownloadedVideoCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (onShowInfo != null)
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                  ),
+                  onPressed: onShowInfo,
+                  tooltip: 'Info / Details',
+                ),
               IconButton(
                 padding: EdgeInsets.zero,
                 icon: Icon(

@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:flutter_hls_parser/flutter_hls_parser.dart';
 import 'package:gal/gal.dart';
 import '../models/video_item.dart';
+import '../models/video_metadata.dart';
 
 class DownloadSelection {
   final String quality;
@@ -70,8 +71,7 @@ class DownloadService {
       String,
       String, {
       required Duration thumbnailSeekPosition,
-    })?
-    onCaptureThumbnail,
+    })? onCaptureThumbnail,
   }) async {
     try {
       statusNotifier.value = 'Analyzing manifest...';
@@ -166,28 +166,42 @@ class DownloadService {
 
       final downloadsDir = await getDownloadsDir();
       final sanitizedTitle = sanitizeFolderName(video.title);
-      final sanitizedGroup = groupName != null
-          ? sanitizeFolderName(groupName)
-          : null;
+      final sanitizedGroup =
+          groupName != null ? sanitizeFolderName(groupName) : null;
 
-      final String path = sanitizedGroup != null
-          ? p.join(downloadsDir.path, sanitizedGroup, sanitizedTitle)
-          : p.join(downloadsDir.path, sanitizedTitle);
+      final String fileNameWithoutExt;
+      if (sanitizedGroup != null) {
+        if (sanitizedTitle.startsWith('${sanitizedGroup}_')) {
+          fileNameWithoutExt = sanitizedTitle;
+        } else {
+          fileNameWithoutExt = '${sanitizedGroup}_$sanitizedTitle';
+        }
+      } else {
+        fileNameWithoutExt = sanitizedTitle;
+      }
 
-      final videoDir = Directory(path);
-      if (!await videoDir.exists()) await videoDir.create(recursive: true);
+      final Directory targetDir = sanitizedGroup != null
+          ? Directory(p.join(downloadsDir.path, sanitizedGroup))
+          : downloadsDir;
+
+      if (!await targetDir.exists()) await targetDir.create(recursive: true);
+
+      final tempDir = Directory(
+        p.join(targetDir.path, '.temp_$fileNameWithoutExt'),
+      );
+      if (!await tempDir.exists()) await tempDir.create(recursive: true);
 
       final total = segments.length;
       totalNotifier.value = total;
-      final thumbPath = p.join(videoDir.path, 'thumbnail.jpg');
-      final outputPath = p.join(videoDir.path, 'output.mp4');
+      final thumbPath = p.join(targetDir.path, '$fileNameWithoutExt.jpg');
+      final outputPath = p.join(targetDir.path, '$fileNameWithoutExt.mp4');
 
       // Check for initialization segment (fMP4)
       String? initPath;
       if (segments.isNotEmpty && segments.first.initializationSegment != null) {
         final initSegment = segments.first.initializationSegment!;
         final initUrl = baseUri.resolve(initSegment.url.toString()).toString();
-        initPath = p.join(videoDir.path, 'init.mp4');
+        initPath = p.join(tempDir.path, 'init.mp4');
         await _dio.download(initUrl, initPath, cancelToken: cancelToken);
       }
 
@@ -212,12 +226,9 @@ class DownloadService {
             if (segmentUrlString == null) return;
 
             final segmentUrl = baseUri.resolve(segmentUrlString).toString();
-            final segmentFileName = segmentUrlString
-                .split('/')
-                .last
-                .split('?')
-                .first;
-            final segmentFile = File(p.join(videoDir.path, segmentFileName));
+            final segmentFileName =
+                segmentUrlString.split('/').last.split('?').first;
+            final segmentFile = File(p.join(tempDir.path, segmentFileName));
 
             int retries = 3;
             bool success = false;
@@ -270,29 +281,28 @@ class DownloadService {
           if (await initFile.exists()) {
             final bytes = await initFile.readAsBytes();
             await raf.writeFrom(bytes);
-            await initFile.delete();
           }
         }
 
         for (final segment in segments) {
           final segmentUrlString = segment.url;
           if (segmentUrlString != null) {
-            final segmentFileName = segmentUrlString
-                .split('/')
-                .last
-                .split('?')
-                .first;
-            final segmentPath = p.join(videoDir.path, segmentFileName);
+            final segmentFileName =
+                segmentUrlString.split('/').last.split('?').first;
+            final segmentPath = p.join(tempDir.path, segmentFileName);
             final segmentFile = File(segmentPath);
             if (await segmentFile.exists()) {
               final bytes = await segmentFile.readAsBytes();
               await raf.writeFrom(bytes);
-              await segmentFile.delete();
             }
           }
         }
       } finally {
         await raf.close();
+        if (await tempDir.exists()) {
+          // ignore: body_might_complete_normally_catch_error
+          await tempDir.delete(recursive: true).catchError((_) {});
+        }
       }
 
       // Capture thumbnail if callback provided
@@ -303,6 +313,24 @@ class DownloadService {
           thumbPath,
           thumbnailSeekPosition: thumbnailSeekPosition,
         );
+      }
+
+      // Save sidecar JSON metadata
+      try {
+        final jsonPath = p.join(targetDir.path, '$fileNameWithoutExt.json');
+        final fileSizeBytes =
+            await outputFile.exists() ? await outputFile.length() : null;
+        final metadata = VideoMetadata(
+          title: video.title,
+          sourceUrl: video.url,
+          downloadDate: DateTime.now(),
+          quality: selected ?? 'auto',
+          groupName: groupName,
+          fileSizeBytes: fileSizeBytes,
+        );
+        await metadata.saveToFile(File(jsonPath));
+      } catch (e) {
+        debugPrint('Failed to save metadata JSON: $e');
       }
 
       statusNotifier.value = 'Exporting to Gallery...';

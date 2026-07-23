@@ -8,6 +8,7 @@ import '../widgets/downloaded_videos/select_all_button.dart';
 import '../widgets/downloaded_videos/section_header.dart';
 import '../widgets/downloaded_videos/folder_card.dart';
 import '../widgets/downloaded_videos/downloaded_video_card.dart';
+import '../widgets/downloaded_videos/video_info_modal.dart';
 import 'video_player_screen.dart';
 
 class DownloadedVideosScreen extends StatefulWidget {
@@ -65,29 +66,57 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen>
       final List<FileSystemEntity> entities = _currentDir!.listSync();
 
       for (var entity in entities) {
-        if (entity is Directory) {
-          // Check if this directory is a video itself
-          final masterFile = File('${entity.path}/master.m3u8');
-          final mp4File = File('${entity.path}/output.mp4');
-          final bool isMp4 = await mp4File.exists();
-          final bool isHls = await masterFile.exists();
+        final name = p.basename(entity.path);
+        if (name.startsWith('.')) continue;
 
-          if (isMp4 || isHls) {
-            // It's a video
+        if (entity is File) {
+          if (name.toLowerCase().endsWith('.mp4')) {
+            final title = p.basenameWithoutExtension(entity.path);
             String? thumbPath;
-            final thumbFile = File('${entity.path}/thumbnail.jpg');
+            final thumbFile = File('${p.withoutExtension(entity.path)}.jpg');
             if (await thumbFile.exists()) {
               thumbPath = thumbFile.path;
             }
             items.add(
               VideoItem(
-                title: p.basename(entity.path),
-                url: isMp4 ? mp4File.path : 'file://${masterFile.path}',
+                title: title,
+                url: entity.path,
+                thumbnailUrl: thumbPath,
+              ),
+            );
+          }
+        } else if (entity is Directory) {
+          final folderName = name;
+          // Check if this directory is a legacy video directory itself
+          final masterFile = File(p.join(entity.path, 'master.m3u8'));
+          final namedMp4File = File(p.join(entity.path, '$folderName.mp4'));
+          final legacyMp4File = File(p.join(entity.path, 'output.mp4'));
+
+          final bool isNamedMp4 = await namedMp4File.exists();
+          final bool isLegacyMp4 = await legacyMp4File.exists();
+          final bool isHls = await masterFile.exists();
+
+          if (isNamedMp4 || isLegacyMp4 || isHls) {
+            // It's a legacy video folder
+            String? thumbPath;
+            final thumbFile = File(p.join(entity.path, 'thumbnail.jpg'));
+            if (await thumbFile.exists()) {
+              thumbPath = thumbFile.path;
+            }
+            final String videoUrl = isNamedMp4
+                ? namedMp4File.path
+                : (isLegacyMp4
+                    ? legacyMp4File.path
+                    : 'file://${masterFile.path}');
+            items.add(
+              VideoItem(
+                title: folderName,
+                url: videoUrl,
                 thumbnailUrl: thumbPath,
               ),
             );
           } else {
-            // It's a group folder (or empty folder)
+            // It's a group folder
             items.add(entity);
           }
         }
@@ -519,6 +548,7 @@ class _DownloadedVideosScreenState extends State<DownloadedVideosScreen>
         item: video,
         onSuccess: _loadCurrentDir,
       ),
+      onShowInfo: () => VideoInfoModal.show(context, video),
     );
   }
 }
